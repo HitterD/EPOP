@@ -1,0 +1,181 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: epop
+          POSTGRES_PASSWORD: epop
+          POSTGRES_DB: epop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U epop" --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Docker build (backend)
+        run: docker build -t epop/backend:ci -f Dockerfile .
+
+      - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image to GHCR
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          REPO=ghcr.io/${{ github.repository }}
+          docker tag epop/backend:ci $REPO/backend:${{ github.sha }}
+          docker tag epop/backend:ci $REPO/backend:latest
+          docker push $REPO/backend:${{ github.sha }}
+          docker push $REPO/backend:latest
+
+      - name: Wait for services
+        run: npx --yes wait-on tcp:127.0.0.1:5432 tcp:127.0.0.1:6379
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Unit tests
+        run: npm test -- --passWithNoTests
+
+      - name: Run migrations
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_USER: epop
+          DB_PASS: epop
+          DB_NAME: epop
+        run: npm run migrate:run
+
+      - name: Seed dev data
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_USER: epop
+          DB_PASS: epop
+          DB_NAME: epop
+        run: npm run seed:dev
+
+      - name: Start API
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_USER: epop
+          DB_PASS: epop
+          DB_NAME: epop
+          REDIS_URL: redis://127.0.0.1:6379
+          PORT: 4000
+        run: nohup node dist/main > ../api.log 2>&1 &
+
+      - name: Wait for API
+        run: npx --yes wait-on http-get://127.0.0.1:4000/api/health/live
+
+      - name: Export OpenAPI JSON
+        run: curl -sS http://127.0.0.1:4000/docs-json -o openapi.json
+
+      - name: Upload OpenAPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi.json
+          path: backend/openapi.json
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Smoke tests (curl)
+        shell: bash
+        env:
+          BASE: http://127.0.0.1:4000/api/v1
+        run: |
+          set -euo pipefail
+          # Login as seeded admin
+          curl -sS -c cookies.txt -b cookies.txt -H 'Content-Type: application/json' \
+            -d '{"email":"admin@epop.local","password":"admin123"}' \
+            -o /dev/null -w '%{http_code}' \
+            "$BASE/auth/login" | grep -E '200|201'
+
+          # Get first chat id
+          CHAT_ID=$(curl -sS -b cookies.txt "$BASE/chats" | jq -r '.[0].id')
+          echo "CHAT_ID=$CHAT_ID"
+
+          # Send a message with Idempotency-Key twice
+          IDEM=$(node -e "console.log(require('crypto').randomUUID())")
+          MSG=$(curl -sS -b cookies.txt -H "Idempotency-Key: $IDEM" -H 'Content-Type: application/json' \
+            -d '{"content": {"type": "text", "text": "Smoke test message"}}' \
+            "$BASE/chats/$CHAT_ID/messages")
+          MSG_ID=$(echo "$MSG" | jq -r '.id')
+          echo "MSG_ID=$MSG_ID"
+          MSG2=$(curl -sS -b cookies.txt -H "Idempotency-Key: $IDEM" -H 'Content-Type: application/json' \
+            -d '{"content": {"type": "text", "text": "Smoke test message"}}' \
+            "$BASE/chats/$CHAT_ID/messages")
+          MSG2_ID=$(echo "$MSG2" | jq -r '.id')
+          test "$MSG_ID" = "$MSG2_ID"
+
+          # Files: presign and attach to message
+          PRES=$(curl -sS -b cookies.txt -H 'Content-Type: application/json' -d '{"filename":"smoke.txt"}' "$BASE/files/presign")
+          FILE_ID=$(echo "$PRES" | jq -r '.fileId')
+          curl -sS -b cookies.txt -H 'Content-Type: application/json' \
+            -d "{\"fileId\":\"$FILE_ID\",\"refTable\":\"messages\",\"refId\":\"$MSG_ID\"}" \
+            "$BASE/files/attach" | jq -e '.success == true' > /dev/null
+
+          # Projects: create a task then move it
+          PROJ=$(curl -sS -b cookies.txt "$BASE/projects/mine" | jq -r '.[0].id')
+          TASK=$(curl -sS -b cookies.txt -H 'Content-Type: application/json' \
+            -d '{"title":"Smoke Task","position":1}' "$BASE/projects/$PROJ/tasks")
+          TASK_ID=$(echo "$TASK" | jq -r '.id')
+          curl -sS -b cookies.txt -H 'Content-Type: application/json' \
+            -d '{"bucketId":null,"position":2}' "$BASE/projects/$PROJ/tasks/$TASK_ID/move" | jq -e '.success == true' > /dev/null
+
+          # Search: reindex messages then query
+          curl -sS -b cookies.txt -X PUT "$BASE/search/index/messages" | jq -e '.success == true' > /dev/null || true
+          curl -sS -b cookies.txt "$BASE/search/messages/cursor?q=Smoke" | jq -e '.items != null' > /dev/null
+
+          # Notifications prefs get/put
+          curl -sS -b cookies.txt "$BASE/notifications/prefs" | jq -e '.userId != null' > /dev/null
+          curl -sS -b cookies.txt -H 'Content-Type: application/json' -X PUT -d '{"emailEnabled":true}' "$BASE/notifications/prefs" | jq -e '.success == true' > /dev/null
+
+          # Metrics
+          curl -sS http://127.0.0.1:4000/metrics | head -n 1 | grep -E 'HELP|TYPE'

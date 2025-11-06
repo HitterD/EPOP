@@ -1,0 +1,98 @@
+{
+  "common": {
+    "loading": "Memuat...",
+    "error": "Error",
+    "success": "Berhasil",
+    "cancel": "Batal",
+    "save": "Simpan",
+    "delete": "Hapus",
+    "edit": "Ubah",
+    "create": "Buat",
+    "search": "Cari",
+    "filter": "Filter",
+    "export": "Ekspor",
+    "import": "Impor",
+    "refresh": "Muat Ulang",
+    "close": "Tutup",
+    "back": "Kembali",
+    "next": "Selanjutnya",
+    "previous": "Sebelumnya",
+    "submit": "Kirim",
+    "confirm": "Konfirmasi"
+  },
+  "navigation": {
+    "home": "Beranda",
+    "chat": "Chat",
+    "projects": "Proyek",
+    "directory": "Direktori",
+    "files": "File",
+    "notifications": "Notifikasi",
+    "settings": "Pengaturan",
+    "profile": "Profil",
+    "logout": "Keluar"
+  },
+  "chat": {
+    "title": "Chat",
+    "newMessage": "Pesan Baru",
+    "sendMessage": "Kirim Pesan",
+    "typing": "mengetik...",
+    "noMessages": "Belum ada pesan",
+    "searchMessages": "Cari pesan",
+    "attachFile": "Lampirkan file",
+    "emojiPicker": "Tambah emoji"
+  },
+  "projects": {
+    "title": "Proyek",
+    "newProject": "Proyek Baru",
+    "myProjects": "Proyek Saya",
+    "allProjects": "Semua Proyek",
+    "board": "Board",
+    "grid": "Grid",
+    "timeline": "Timeline",
+    "charts": "Grafik",
+    "tasks": "Tugas",
+    "newTask": "Tugas Baru",
+    "noProjects": "Tidak ada proyek"
+  },
+  "directory": {
+    "title": "Direktori",
+    "users": "Pengguna",
+    "teams": "Tim",
+    "orgUnits": "Unit Organisasi",
+    "search": "Cari direktori",
+    "noResults": "Tidak ada hasil",
+    "audit": "Jejak Audit",
+    "bulkImport": "Impor Massal"
+  },
+  "notifications": {
+    "title": "Notifikasi",
+    "markAsRead": "Tandai sudah dibaca",
+    "markAllAsRead": "Tandai semua sudah dibaca",
+    "noNotifications": "Tidak ada notifikasi",
+    "settings": "Pengaturan Notifikasi"
+  },
+  "auth": {
+    "login": "Masuk",
+    "logout": "Keluar",
+    "register": "Daftar",
+    "email": "Email",
+    "password": "Kata Sandi",
+    "forgotPassword": "Lupa Kata Sandi",
+    "resetPassword": "Reset Kata Sandi",
+    "rememberMe": "Ingat saya"
+  },
+  "errors": {
+    "generic": "Terjadi kesalahan",
+    "network": "Error jaringan",
+    "unauthorized": "Tidak diizinkan",
+    "notFound": "Tidak ditemukan",
+    "serverError": "Error server",
+    "validation": "Error validasi"
+  },
+  "success": {
+    "saved": "Berhasil disimpan",
+    "deleted": "Berhasil dihapus",
+    "created": "Berhasil dibuat",
+    "updated": "Berhasil diperbarui"
+  }
+}

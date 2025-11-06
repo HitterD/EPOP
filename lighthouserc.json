@@ -1,0 +1,46 @@
+{
+  "ci": {
+    "collect": {
+      "startServerCommand": "cross-env PORT=4010 npm start",
+      "startServerReadyPattern": "Ready on",
+      "startServerReadyTimeout": 120000,
+      "url": [
+        "http://localhost:4010/login",
+        "http://localhost:4010/register"
+      ],
+      "numberOfRuns": 3
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.85 }],
+        "categories:accessibility": ["warn", { "minScore": 0.95 }],
+        "uses-long-cache-ttl": "warn",
+        "unminified-javascript": "warn",
+        "unused-javascript": "warn",
+        "unsized-images": "warn",
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }],
+        "largest-contentful-paint": ["error", { "maxNumericValue": 2500 }],
+        "max-potential-fid": ["error", { "maxNumericValue": 200 }],
+        "total-blocking-time": ["warn", { "maxNumericValue": 300 }],
+        "interactive": ["warn", { "maxNumericValue": 3500 }]
+      },
+      "budgets": [
+        {
+          "path": "/",
+          "resourceSizes": [
+            { "resourceType": "script", "budget": 300 },
+            { "resourceType": "third-party", "budget": 150 },
+            { "resourceType": "image", "budget": 300 }
+          ],
+          "timings": [
+            { "metric": "interactive", "budget": 5000 }
+          ]
+        }
+      ]
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": "./lhci"
+    }
+  }
+}

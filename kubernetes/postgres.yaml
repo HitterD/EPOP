@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: epop-postgres
+  labels:
+    app: epop-postgres
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: epop-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: epop-postgres
+  labels:
+    app: epop-postgres
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: postgres
+spec:
+  serviceName: epop-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: epop-postgres
+  template:
+    metadata:
+      labels:
+        app: epop-postgres
+        app.kubernetes.io/part-of: epop
+        app.kubernetes.io/name: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: epop
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-db-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: epop-db-secret
+                  key: POSTGRES_PASSWORD
+          readinessProbe:
+            exec:
+              command: ["sh","-c","pg_isready -h 127.0.0.1 -p 5432 -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["sh","-c","pg_isready -h 127.0.0.1 -p 5432 -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      terminationGracePeriodSeconds: 30
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

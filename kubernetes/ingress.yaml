@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: epop-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "balanced"
+    nginx.ingress.kubernetes.io/session-cookie-name: "epop_affinity"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+    nginx.ingress.kubernetes.io/enable-brotli: "true"
+    nginx.ingress.kubernetes.io/enable-gzip: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/limit-rpm: "120"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Content-Type-Options "nosniff" always;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Request-Id $req_id;
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: epop.example.com
+      http:
+        paths:
+          - path: /socket.io/?(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: epop-backend-api
+                port:
+                  number: 4000
+          - path: /api(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: epop-backend-api
+                port:
+                  number: 4000
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: epop-frontend
+                port:
+                  number: 3000

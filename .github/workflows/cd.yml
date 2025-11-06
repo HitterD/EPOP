@@ -1,0 +1,218 @@
+name: CD Staging
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'backend/**'
+      - 'Dockerfile.frontend'
+      - 'kubernetes/**'
+      - '.github/workflows/cd.yml'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      NAMESPACE: staging
+      OWNER: ${{ github.repository_owner }}
+      SHA: ${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push backend image
+        run: |
+          docker build -f backend/Dockerfile -t ghcr.io/${OWNER}/epop-backend:${SHA} -t ghcr.io/${OWNER}/epop-backend:latest .
+          docker push ghcr.io/${OWNER}/epop-backend:${SHA}
+          docker push ghcr.io/${OWNER}/epop-backend:latest
+
+      - name: Build & push frontend image
+        run: |
+          docker build -f Dockerfile.frontend -t ghcr.io/${OWNER}/epop-frontend:${SHA} -t ghcr.io/${OWNER}/epop-frontend:latest .
+          docker push ghcr.io/${OWNER}/epop-frontend:${SHA}
+          docker push ghcr.io/${OWNER}/epop-frontend:latest
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.30.0'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${KUBE_CONFIG}" > ~/.kube/config
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Create namespace (if not exists)
+        run: |
+          kubectl get ns ${NAMESPACE} || kubectl create ns ${NAMESPACE}
+
+      - name: Prepare manifests (inject image tags)
+        run: |
+          sed -i "s|ghcr.io/OWNER/epop-backend:latest|ghcr.io/${OWNER}/epop-backend:${SHA}|g" kubernetes/backend-api.yaml kubernetes/workers.yaml
+          sed -i "s|ghcr.io/OWNER/epop-frontend:latest|ghcr.io/${OWNER}/epop-frontend:${SHA}|g" kubernetes/frontend.yaml
+
+      - name: Apply Secrets from GitHub Secrets
+        run: |
+          kubectl -n ${NAMESPACE} apply -f - <<'EOF'
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: epop-db-secret
+          type: Opaque
+          stringData:
+            POSTGRES_USER: "${{ secrets.DB_USER }}"
+            POSTGRES_PASSWORD: "${{ secrets.DB_PASS }}"
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: epop-auth-secret
+          type: Opaque
+          stringData:
+            JWT_ACCESS_SECRET: "${{ secrets.JWT_ACCESS_SECRET }}"
+            JWT_REFRESH_SECRET: "${{ secrets.JWT_REFRESH_SECRET }}"
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: epop-vapid-secret
+          type: Opaque
+          stringData:
+            VAPID_PUBLIC_KEY: "${{ secrets.VAPID_PUBLIC_KEY }}"
+            VAPID_PRIVATE_KEY: "${{ secrets.VAPID_PRIVATE_KEY }}"
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: epop-smtp-secret
+          type: Opaque
+          stringData:
+            SMTP_HOST: "${{ secrets.SMTP_HOST }}"
+            SMTP_PORT: "${{ secrets.SMTP_PORT }}"
+            SMTP_USER: "${{ secrets.SMTP_USER }}"
+            SMTP_PASS: "${{ secrets.SMTP_PASS }}"
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: epop-zinc-secret
+          type: Opaque
+          stringData:
+            ZINC_USER: "${{ secrets.ZINC_USER }}"
+            ZINC_PASS: "${{ secrets.ZINC_PASS }}"
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: epop-minio-secret
+          type: Opaque
+          stringData:
+            MINIO_ACCESS_KEY: "${{ secrets.MINIO_ACCESS_KEY }}"
+            MINIO_SECRET_KEY: "${{ secrets.MINIO_SECRET_KEY }}"
+            MINIO_ROOT_USER: "${{ secrets.MINIO_ROOT_USER }}"
+            MINIO_ROOT_PASSWORD: "${{ secrets.MINIO_ROOT_PASSWORD }}"
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: grafana-admin
+            namespace: monitoring
+          type: Opaque
+          stringData:
+            admin-user: "${{ secrets.GRAFANA_ADMIN_USER }}"
+            admin-password: "${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+          EOF
+
+      - name: Deploy Monitoring Stack
+        run: |
+          # Namespaces
+          kubectl apply -f kubernetes/monitoring/namespace.yaml
+          # Replace namespace placeholder in Prometheus scrape target
+          sed -i "s/__NAMESPACE__/${NAMESPACE}/g" kubernetes/monitoring/prometheus.yaml
+          # Apply manifests
+          kubectl -n monitoring apply -f kubernetes/monitoring/prometheus.yaml
+          kubectl -n monitoring apply -f kubernetes/monitoring/loki.yaml
+          kubectl -n monitoring apply -f kubernetes/monitoring/promtail.yaml
+          kubectl -n monitoring apply -f kubernetes/monitoring/grafana.yaml
+          # Optional: Only available if Prometheus Operator CRDs are installed
+          kubectl -n monitoring apply -f kubernetes/monitoring/servicemonitor.yaml || true
+
+      - name: Deploy K8s resources
+        run: |
+          kubectl -n ${NAMESPACE} apply -f kubernetes/postgres.yaml
+          kubectl -n ${NAMESPACE} apply -f kubernetes/redis.yaml
+          kubectl -n ${NAMESPACE} apply -f kubernetes/minio.yaml
+          kubectl -n ${NAMESPACE} apply -f kubernetes/zinc.yaml
+          kubectl -n ${NAMESPACE} apply -f kubernetes/backend-api.yaml
+          kubectl -n ${NAMESPACE} apply -f kubernetes/frontend.yaml
+          kubectl -n ${NAMESPACE} apply -f kubernetes/workers.yaml
+          kubectl -n ${NAMESPACE} apply -f kubernetes/ingress.yaml
+
+      - name: Wait for rollouts
+        run: |
+          kubectl -n ${NAMESPACE} rollout status deploy/epop-backend-api --timeout=180s
+          kubectl -n ${NAMESPACE} rollout status deploy/epop-frontend --timeout=180s
+          kubectl -n ${NAMESPACE} rollout status deploy/epop-email-worker --timeout=180s || true
+          kubectl -n ${NAMESPACE} rollout status deploy/epop-search-worker --timeout=180s || true
+          kubectl -n ${NAMESPACE} rollout status deploy/epop-notification-worker --timeout=180s || true
+
+      - name: Run DB migrations
+        run: |
+          POD=$(kubectl -n ${NAMESPACE} get pods -l app=epop-backend-api -o jsonpath='{.items[0].metadata.name}')
+          kubectl -n ${NAMESPACE} exec "$POD" -- node node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js
+
+      - name: Seed database
+        run: |
+          POD=$(kubectl -n ${NAMESPACE} get pods -l app=epop-backend-api -o jsonpath='{.items[0].metadata.name}')
+          kubectl -n ${NAMESPACE} exec "$POD" -- node dist/seeds/seed.js || true
+
+      - name: Smoke tests (in-cluster)
+        run: |
+          kubectl -n ${NAMESPACE} delete pod smoke --ignore-not-found=true
+          kubectl -n ${NAMESPACE} run smoke --image=alpine:3 --restart=Never -- sh -lc '
+            set -euo pipefail
+            apk add --no-cache curl jq >/dev/null
+            BASE=http://epop-backend-api:4000/api/v1
+            # Health & metrics
+            curl -fsS http://epop-backend-api:4000/api/health/live >/dev/null
+            curl -fsS http://epop-backend-api:4000/metrics | head -n1 | grep -E "HELP|TYPE"
+            # Login
+            curl -sS -c cookies.txt -b cookies.txt -H "Content-Type: application/json" \
+              -d "{\"email\":\"admin@epop.local\",\"password\":\"admin123\"}" \
+              "$BASE/auth/login" | jq -e '.accessToken != null' >/dev/null || true
+            # Chats
+            CHAT_ID=$(curl -sS -b cookies.txt "$BASE/chats" | jq -r '.[0].id')
+            IDEM=$(cat /proc/sys/kernel/random/uuid)
+            curl -sS -b cookies.txt -H "Idempotency-Key: $IDEM" -H "Content-Type: application/json" \
+              -d "{\"content\":{\"type\":\"text\",\"text\":\"CD smoke\"}}" "$BASE/chats/$CHAT_ID/messages" | jq -r '.id' | grep -E '.+'
+            # Projects
+            PROJ=$(curl -sS -b cookies.txt "$BASE/projects/mine" | jq -r '.[0].id')
+            TASK=$(curl -sS -b cookies.txt -H "Content-Type: application/json" -d "{\"title\":\"CD Task\",\"position\":1}" "$BASE/projects/$PROJ/tasks")
+            TASK_ID=$(echo "$TASK" | jq -r '.id')
+            curl -sS -b cookies.txt -H "Content-Type: application/json" -d "{\"bucketId\":null,\"position\":2}" "$BASE/projects/$PROJ/tasks/$TASK_ID/move" | jq -e '.success == true' >/dev/null
+            # Search reindex
+            curl -sS -b cookies.txt -X PUT "$BASE/search/index/messages" | jq -e '.success == true' >/dev/null || true
+            curl -sS -b cookies.txt "$BASE/search/messages/cursor?q=CD" | jq -e '.items != null' >/dev/null || true
+          '
+          kubectl -n ${NAMESPACE} wait --for=condition=Complete --timeout=120s pod/smoke || true
+          kubectl -n ${NAMESPACE} logs pod/smoke || true

@@ -1,0 +1,28 @@
+[
+  {
+    "url": "http://localhost:4010/login",
+    "isRepresentativeRun": true,
+    "htmlPath": "C:\\EPop\\lhci\\localhost-_login-2025_11_05_15_46_30.report.html",
+    "jsonPath": "C:\\EPop\\lhci\\localhost-_login-2025_11_05_15_46_30.report.json",
+    "summary": {
+      "performance": 0.91,
+      "accessibility": 0.9,
+      "best-practices": 0.92,
+      "seo": 0.89,
+      "pwa": 0.67
+    }
+  },
+  {
+    "url": "http://localhost:4010/register",
+    "isRepresentativeRun": true,
+    "htmlPath": "C:\\EPop\\lhci\\localhost-_register-2025_11_05_15_46_45.report.html",
+    "jsonPath": "C:\\EPop\\lhci\\localhost-_register-2025_11_05_15_46_45.report.json",
+    "summary": {
+      "performance": 0.93,
+      "accessibility": 0.9,
+      "best-practices": 0.92,
+      "seo": 0.92,
+      "pwa": 0.67
+    }
+  }
+]

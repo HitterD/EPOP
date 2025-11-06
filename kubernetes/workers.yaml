@@ -1,0 +1,267 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: epop-email-worker
+  labels:
+    app: epop-email-worker
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: email-worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: epop-email-worker
+  template:
+    metadata:
+      labels:
+        app: epop-email-worker
+        app.kubernetes.io/part-of: epop
+        app.kubernetes.io/name: email-worker
+        app.kubernetes.io/component: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: worker
+          image: ghcr.io/OWNER/epop-backend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["node","dist/workers/main.js"]
+          envFrom:
+            - configMapRef:
+                name: epop-backend-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-db-secret
+                  key: POSTGRES_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: epop-db-secret
+                  key: POSTGRES_PASSWORD
+            - name: EMAIL_WORKER_CONCURRENCY
+              value: "5"
+            - name: SMTP_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: epop-smtp-secret
+                  key: SMTP_HOST
+            - name: SMTP_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: epop-smtp-secret
+                  key: SMTP_PORT
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-smtp-secret
+                  key: SMTP_USER
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: epop-smtp-secret
+                  key: SMTP_PASS
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  node -e "const Redis=require('ioredis'); const r=new Redis(process.env.REDIS_URL); r.ping().then(()=>process.exit(0)).catch(()=>process.exit(1))"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  node -e "const Redis=require('ioredis'); const r=new Redis(process.env.REDIS_URL); r.ping().then(()=>process.exit(0)).catch(()=>process.exit(1))"
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: epop-search-worker
+  labels:
+    app: epop-search-worker
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: search-worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: epop-search-worker
+  template:
+    metadata:
+      labels:
+        app: epop-search-worker
+        app.kubernetes.io/part-of: epop
+        app.kubernetes.io/name: search-worker
+        app.kubernetes.io/component: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: worker
+          image: ghcr.io/OWNER/epop-backend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["node","dist/workers/main.js"]
+          envFrom:
+            - configMapRef:
+                name: epop-backend-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-db-secret
+                  key: POSTGRES_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: epop-db-secret
+                  key: POSTGRES_PASSWORD
+            - name: SEARCH_WORKER_CONCURRENCY
+              value: "5"
+            - name: ZINC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-zinc-secret
+                  key: ZINC_USER
+            - name: ZINC_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: epop-zinc-secret
+                  key: ZINC_PASS
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  node -e "const Redis=require('ioredis'); const r=new Redis(process.env.REDIS_URL); r.ping().then(()=>process.exit(0)).catch(()=>process.exit(1))"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  node -e "const Redis=require('ioredis'); const r=new Redis(process.env.REDIS_URL); r.ping().then(()=>process.exit(0)).catch(()=>process.exit(1))"
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: epop-notification-worker
+  labels:
+    app: epop-notification-worker
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: notification-worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: epop-notification-worker
+  template:
+    metadata:
+      labels:
+        app: epop-notification-worker
+        app.kubernetes.io/part-of: epop
+        app.kubernetes.io/name: notification-worker
+        app.kubernetes.io/component: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: worker
+          image: ghcr.io/OWNER/epop-backend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["node","dist/workers/main.js"]
+          envFrom:
+            - configMapRef:
+                name: epop-backend-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-db-secret
+                  key: POSTGRES_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: epop-db-secret
+                  key: POSTGRES_PASSWORD
+            - name: NOTIFICATION_WORKER_CONCURRENCY
+              value: "3"
+            - name: VAPID_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: epop-vapid-secret
+                  key: VAPID_PUBLIC_KEY
+            - name: VAPID_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: epop-vapid-secret
+                  key: VAPID_PRIVATE_KEY
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  node -e "const Redis=require('ioredis'); const r=new Redis(process.env.REDIS_URL); r.ping().then(()=>process.exit(0)).catch(()=>process.exit(1))"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  node -e "const Redis=require('ioredis'); const r=new Redis(process.env.REDIS_URL); r.ping().then(()=>process.exit(0)).catch(()=>process.exit(1))"
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi

@@ -1,0 +1,184 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/component: monitoring
+    grafana_datasource: '1'
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://epop-prometheus.monitoring.svc.cluster.local:9090
+        isDefault: true
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://epop-loki.monitoring.svc.cluster.local:3100
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-epop
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/component: monitoring
+    grafana_dashboard: '1'
+data:
+  epop-api-overview.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "iteration": 165,
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Request Rate (rps)",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total[5m]))",
+              "legendFormat": "all"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Error Rate (5xx)",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m]))",
+              "legendFormat": "5xx"
+            }
+          ]
+        },
+        {
+          "type": "graph",
+          "title": "Latency p95 / p99 (s)",
+          "gridPos": { "h": 8, "w": 16, "x": 0, "y": 6 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p99"
+            }
+          ]
+        },
+        {
+          "type": "logs",
+          "title": "Backend Logs",
+          "gridPos": { "h": 10, "w": 16, "x": 0, "y": 14 },
+          "options": {"showLabels": true, "showTime": true},
+          "targets": [
+            {
+              "datasource": {"type": "loki", "uid": "-"},
+              "expr": "{app=\"epop-backend-api\"} | json",
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "style": "dark",
+      "templating": { "list": [] },
+      "time": { "from": "now-6h", "to": "now" },
+      "timezone": "",
+      "title": "EPOP API Overview",
+      "uid": "epop-api-overview",
+      "version": 1
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: epop-grafana
+  namespace: monitoring
+  labels:
+    app: epop-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: epop-grafana
+  template:
+    metadata:
+      labels:
+        app: epop-grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.5
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin
+                  key: admin-password
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards-json
+              mountPath: /var/lib/grafana/dashboards
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+            items:
+              - key: datasources.yaml
+                path: datasources.yaml
+        - name: dashboards
+          configMap:
+            name: grafana-dashboard-epop
+            items:
+              - key: epop-api-overview.json
+                path: dashboards.yaml
+        - name: dashboards-json
+          configMap:
+            name: grafana-dashboard-epop
+            items:
+              - key: epop-api-overview.json
+                path: epop-api-overview.json
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: epop-grafana
+  namespace: monitoring
+  labels:
+    app: epop-grafana
+spec:
+  type: ClusterIP
+  selector:
+    app: epop-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: epop-minio
+  labels:
+    app: epop-minio
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: minio
+spec:
+  type: ClusterIP
+  selector:
+    app: epop-minio
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: epop-minio
+  labels:
+    app: epop-minio
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: minio
+spec:
+  serviceName: epop-minio
+  replicas: 1
+  selector:
+    matchLabels:
+      app: epop-minio
+  template:
+    metadata:
+      labels:
+        app: epop-minio
+        app.kubernetes.io/part-of: epop
+        app.kubernetes.io/name: minio
+    spec:
+      containers:
+        - name: minio
+          image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
+          imagePullPolicy: IfNotPresent
+          args: ["server","/data","--console-address",":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-minio-secret
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: epop-minio-secret
+                  key: MINIO_ROOT_PASSWORD
+          ports:
+            - containerPort: 9000
+              name: s3
+            - containerPort: 9001
+              name: console
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi

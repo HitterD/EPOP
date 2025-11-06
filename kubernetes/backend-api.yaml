@@ -1,0 +1,189 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: epop-backend-config
+  labels:
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: backend-api
+    app.kubernetes.io/component: backend
+data:
+  PORT: "4000"
+  CORS_ORIGIN: "https://epop.example.com"
+  DB_HOST: "epop-postgres"
+  DB_PORT: "5432"
+  DB_NAME: "epop"
+  REDIS_URL: "redis://epop-redis:6379"
+  ZINC_URL: "http://epop-zinc:4080"
+  TYPEORM_LOGGING: "false"
+  RATE_LIMIT_WINDOW_MS: "60000"
+  RATE_LIMIT_MAX: "100"
+  MINIO_ENDPOINT: "epop-minio"
+  MINIO_PORT: "9000"
+  MINIO_USE_SSL: "false"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: epop-backend-api
+  labels:
+    app: epop-backend-api
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: backend-api
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: epop-backend-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: epop-backend-api
+        app.kubernetes.io/part-of: epop
+        app.kubernetes.io/name: backend-api
+        app.kubernetes.io/component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4000"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command: ["sh","-c","until pg_isready -h epop-postgres -p 5432; do echo waiting for postgres; sleep 2; done"]
+      containers:
+        - name: epop-backend-api
+          image: ghcr.io/OWNER/epop-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4000
+          envFrom:
+            - configMapRef:
+                name: epop-backend-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-db-secret
+                  key: POSTGRES_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: epop-db-secret
+                  key: POSTGRES_PASSWORD
+            - name: JWT_ACCESS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: epop-auth-secret
+                  key: JWT_ACCESS_SECRET
+            - name: JWT_REFRESH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: epop-auth-secret
+                  key: JWT_REFRESH_SECRET
+            - name: VAPID_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: epop-vapid-secret
+                  key: VAPID_PUBLIC_KEY
+            - name: VAPID_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: epop-vapid-secret
+                  key: VAPID_PRIVATE_KEY
+            - name: SMTP_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: epop-smtp-secret
+                  key: SMTP_HOST
+            - name: SMTP_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: epop-smtp-secret
+                  key: SMTP_PORT
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-smtp-secret
+                  key: SMTP_USER
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: epop-smtp-secret
+                  key: SMTP_PASS
+            - name: ZINC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-zinc-secret
+                  key: ZINC_USER
+            - name: ZINC_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: epop-zinc-secret
+                  key: ZINC_PASS
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: epop-minio-secret
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: epop-minio-secret
+                  key: MINIO_SECRET_KEY
+          readinessProbe:
+            httpGet:
+              path: /api/health/ready
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health/live
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 2
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /api/health/live
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: epop-backend-api
+  labels:
+    app: epop-backend-api
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: backend-api
+spec:
+  type: ClusterIP
+  selector:
+    app: epop-backend-api
+  ports:
+    - name: http
+      port: 4000
+      targetPort: 4000

@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: epop-zinc
+  labels:
+    app: epop-zinc
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: zinc
+spec:
+  type: ClusterIP
+  selector:
+    app: epop-zinc
+  ports:
+    - name: http
+      port: 4080
+      targetPort: 4080
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: epop-zinc
+  labels:
+    app: epop-zinc
+    app.kubernetes.io/part-of: epop
+    app.kubernetes.io/name: zinc
+spec:
+  serviceName: epop-zinc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: epop-zinc
+  template:
+    metadata:
+      labels:
+        app: epop-zinc
+        app.kubernetes.io/part-of: epop
+        app.kubernetes.io/name: zinc
+    spec:
+      containers:
+        - name: zinc
+          image: public.ecr.aws/zinclabs/zincsearch:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ZINC_DATA_PATH
+              value: /data
+            - name: ZINC_FIRST_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: epop-zinc-secret
+                  key: ZINC_USER
+            - name: ZINC_FIRST_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: epop-zinc-secret
+                  key: ZINC_PASS
+          ports:
+            - containerPort: 4080
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 4080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi

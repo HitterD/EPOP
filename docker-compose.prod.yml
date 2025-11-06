@@ -1,0 +1,95 @@
+version: '3.9'
+
+services:
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-epop/epop}/backend:latest
+    container_name: epop_backend
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      CORS_ORIGIN: http://localhost:3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: epop
+      DB_PASS: epop
+      DB_NAME: epop
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+      MINIO_BUCKET: epop
+      MINIO_USE_SSL: 'false'
+      ZINC_URL: http://zinc:4080
+      ZINC_USER: admin
+      ZINC_PASS: admin
+      ZINC_INDEX_PREFIX: epop
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+      - redis
+      - minio
+      - zinc
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-epop/epop}/frontend:latest
+    container_name: epop_frontend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3000/api
+      NEXT_PUBLIC_WS_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:16
+    container_name: epop_postgres
+    environment:
+      POSTGRES_USER: epop
+      POSTGRES_PASSWORD: epop
+      POSTGRES_DB: epop
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: epop_redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: epop_minio
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  zinc:
+    image: public.ecr.aws/zinclabs/zinc:latest
+    container_name: epop_zinc
+    environment:
+      ZINC_FIRST_ADMIN_USER: admin
+      ZINC_FIRST_ADMIN_PASSWORD: admin
+      ZINC_DATA_PATH: /data
+    ports:
+      - "4080:4080"
+    volumes:
+      - zinc-data:/data
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  zinc-data:

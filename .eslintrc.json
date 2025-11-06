@@ -1,0 +1,17 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "prettier",
+    "plugin:storybook/recommended"
+  ],
+  "ignorePatterns": [
+    "backend/**",
+    "stories/**",
+    "features/chat/components/message-bubble.tsx"
+  ],
+  "rules": {
+    "react/no-unescaped-entities": "off",
+    "@next/next/no-html-link-for-pages": "off",
+    "react-hooks/exhaustive-deps": "warn"
+  }
+}
