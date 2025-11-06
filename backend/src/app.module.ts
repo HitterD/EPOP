@@ -30,6 +30,9 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor';
 import { QueuesModule } from './queues/queues.module';
 import { RolesGuard } from './common/guards/roles.guard';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { CalendarModule } from './calendar/calendar.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { WorkflowsModule } from './workflows/workflows.module';
 
 @Module({
   imports: [
@@ -63,6 +66,9 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     MetricsModule,
     QueuesModule,
     VitalsModule,
+    CalendarModule,
+    AnalyticsModule,
+    WorkflowsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -9,6 +9,8 @@ import { Task } from '../entities/task.entity'
 import { Chat } from '../entities/chat.entity'
 import { ChatParticipant } from '../entities/chat-participant.entity'
 import { Message } from '../entities/message.entity'
+import { CalendarEvent } from '../entities/calendar-event.entity'
+import { Workflow } from '../entities/workflow.entity'
 import * as argon2 from 'argon2'
 
 async function run() {
@@ -22,6 +24,8 @@ async function run() {
   const chats = AppDataSource.getRepository(Chat)
   const parts = AppDataSource.getRepository(ChatParticipant)
   const messages = AppDataSource.getRepository(Message)
+  const events = AppDataSource.getRepository(CalendarEvent)
+  const workflows = AppDataSource.getRepository(Workflow)
 
   // Org
   const root = await orgs.save(orgs.create({ name: 'Headquarters', code: 'HQ' }))
@@ -46,6 +50,24 @@ async function run() {
   await parts.save(parts.create({ chatId: chat.id, userId: alice.id }))
   await parts.save(parts.create({ chatId: chat.id, userId: bob.id }))
   await messages.save(messages.create({ chat: chat as any, sender: admin as any, contentJson: { type: 'text', text: 'Welcome to EPOP!' } }))
+
+  // Calendar sample
+  const start = new Date(Date.now() + 24 * 3600 * 1000)
+  const end = new Date(start.getTime() + 60 * 60 * 1000)
+  await events.save(events.create({ ownerId: admin.id as any, title: 'Kickoff', startTs: start as any, endTs: end as any, location: 'HQ Room 1', reminders: [{ minutes: 30 }] }))
+
+  // Workflow sample (draft)
+  await workflows.save(workflows.create({
+    name: 'Task created → send email',
+    isActive: false,
+    jsonSpec: {
+      trigger: { type: 'task.created' },
+      actions: [
+        { type: 'send_email', to: '{{task.assignees}}', subject: 'New Task Assigned', body: 'You have a new task: {{task.title}}' },
+      ],
+    },
+    createdBy: admin as any,
+  }))
 
   console.log('Seed completed.')
   await AppDataSource.destroy()

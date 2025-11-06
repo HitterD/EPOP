@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Post, Put, Req, UseGuards } from '@nestjs/common'
 import { AuthGuard } from '@nestjs/passport'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -6,6 +6,8 @@ import { NotificationPreferencesEntity } from '../entities/notification-preferen
 import { ApiDefaultResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger'
 import { ErrorResponse } from '../common/dto/error.dto'
 import { SuccessResponse } from '../common/dto/success.dto'
+import { User } from '../entities/user.entity'
+import { MailerService } from '../mailer/mailer.service'
 
 @ApiTags('notifications')
 @ApiDefaultResponse({ type: ErrorResponse })
@@ -15,6 +17,9 @@ export class NotificationsController {
   constructor(
     @InjectRepository(NotificationPreferencesEntity)
     private readonly prefs: Repository<NotificationPreferencesEntity>,
+    @InjectRepository(User)
+    private readonly users: Repository<User>,
+    private readonly mailer: MailerService,
   ) {}
 
   @Get('prefs')
@@ -26,6 +31,13 @@ export class NotificationsController {
       row = await this.prefs.save(this.prefs.create({ userId, enabled: true, pushEnabled: true, emailEnabled: false, channels: [] }))
     }
     return row
+  }
+
+  // Alias for FE contract
+  @Get('settings')
+  @ApiOkResponse({ type: NotificationPreferencesEntity })
+  async getSettings(@Req() req: any) {
+    return this.getPrefs(req)
   }
 
   @Put('prefs')
@@ -43,5 +55,24 @@ export class NotificationsController {
     if (Array.isArray(body.channels)) row.channels = body.channels
     await this.prefs.save(row)
     return { success: true }
+  }
+
+  // Alias for FE contract
+  @Put('settings')
+  @ApiOkResponse({ type: SuccessResponse })
+  async setSettings(
+    @Req() req: any,
+    @Body() body: { enabled?: boolean; pushEnabled?: boolean; emailEnabled?: boolean; channels?: Array<{ type: 'chat'|'project'|'task'|'system'; id?: string; enabled: boolean }> },
+  ) {
+    return this.setPrefs(req, body)
+  }
+
+  @Post('test-email')
+  @ApiOkResponse({ type: SuccessResponse })
+  async testEmail(@Req() req: any) {
+    const user = await this.users.findOne({ where: { id: String(req.user.userId) } })
+    if (!user?.email) return { success: false }
+    const ok = await this.mailer.sendTestEmail(user.email)
+    return { success: ok }
   }
 }

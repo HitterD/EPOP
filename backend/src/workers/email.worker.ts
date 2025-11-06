@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nest
 import { ConfigService } from '@nestjs/config'
 import { Worker, JobsOptions, Queue } from 'bullmq'
 import nodemailer from 'nodemailer'
+import { Counter, register } from 'prom-client'
 import { DEAD_QUEUE } from '../queues/queues.module'
 
 @Injectable()
@@ -9,6 +10,7 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EmailWorkerService.name)
   private worker?: Worker
   private transporter?: nodemailer.Transporter
+  private emailCounter = new Counter({ name: 'email_send_total', help: 'Total emails attempted', labelNames: ['status'] as any, registers: [register] })
 
   constructor(private readonly config: ConfigService, @Inject(DEAD_QUEUE) private readonly dead: Queue) {}
 
@@ -38,9 +40,11 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
             text: payload.text,
             html: payload.html,
           })
+          try { this.emailCounter.inc({ status: 'success' } as any) } catch {}
           return { sent: true }
         } catch (e) {
           this.logger.warn(`email send failed for job ${job.name} (${job.id}): ${String((e as any)?.message || e)}`)
+          try { this.emailCounter.inc({ status: 'failed' } as any) } catch {}
           throw e
         }
       },

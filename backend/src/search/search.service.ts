@@ -6,6 +6,7 @@ import { MailMessage } from '../entities/mail-message.entity'
 import { FileEntity } from '../entities/file.entity'
 import { Task } from '../entities/task.entity'
 import axios, { AxiosInstance } from 'axios'
+import { Counter, Histogram, register } from 'prom-client'
 import { ConfigService } from '@nestjs/config'
 import { Agent as HttpAgent } from 'node:http'
 import { Agent as HttpsAgent } from 'node:https'
@@ -18,6 +19,9 @@ export class SearchService {
   private readonly logger = new Logger(SearchService.name)
   private client: AxiosInstance
   private prefix: string
+  private searchRequests: Counter
+  private searchDuration: Histogram
+  private indexLag: Histogram
 
   constructor(
     @InjectRepository(Message) private readonly messages: Repository<Message>,
@@ -41,6 +45,11 @@ export class SearchService {
       httpsAgent,
       transitional: { clarifyTimeoutError: true },
     })
+
+    // Metrics
+    this.searchRequests = new Counter({ name: 'search_requests_total', help: 'Total search requests', labelNames: ['method'] as any, registers: [register] })
+    this.searchDuration = new Histogram({ name: 'search_duration_seconds', help: 'Search duration seconds', buckets: [0.01,0.05,0.1,0.2,0.5,1,2,5], labelNames: ['method'] as any, registers: [register] })
+    this.indexLag = new Histogram({ name: 'search_index_lag_seconds', help: 'Time from entity creation to index write', buckets: [0.1,0.5,1,2,5,10,30,60,120,300], registers: [register] })
 
     // Simple retry with exponential backoff for transient network errors
     this.client.interceptors.response.use(undefined, async (error) => {
@@ -74,6 +83,8 @@ export class SearchService {
   }
 
   async searchCursor(entity: 'messages'|'mail_messages'|'files'|'tasks', q: string, userId: string | undefined, limit = 20, cursor: string | null = null) {
+    const endTimer = this.searchDuration.startTimer({ method: 'cursor' } as any)
+    this.searchRequests.inc({ method: 'cursor' } as any)
     const index = this.idx(entity)
     const decoded = decodeCursor(cursor)
     const off = Math.max(0, Number(decoded?.off ?? 0))
@@ -88,9 +99,12 @@ export class SearchService {
       const items = hits.slice(0, size - 1)
       const hasMore = hits.length === size
       const nextCursor = hasMore ? encodeCursor({ off: off + (size - 1) }) : undefined
-      return { items, nextCursor, hasMore }
+      const res = { items, nextCursor, hasMore }
+      endTimer()
+      return res
     } catch (e) {
       this.logger.warn(`search cursor failed for ${index}: ${String((e as any)?.message || e)}`)
+      endTimer()
       return { items: [], hasMore: false }
     }
   }
@@ -98,6 +112,8 @@ export class SearchService {
   private idx(name: string) { return `${this.prefix}_${name}` }
 
   async searchAll(q: string, userId?: string) {
+    const endTimer = this.searchDuration.startTimer({ method: 'all' } as any)
+    this.searchRequests.inc({ method: 'all' } as any)
     const indices = [this.idx('messages'), this.idx('mail_messages'), this.idx('files'), this.idx('tasks')]
     const results: any[] = []
     for (const index of indices) {
@@ -113,7 +129,9 @@ export class SearchService {
         this.logger.warn(`search failed for ${index}: ${String((e as any)?.message || e)}`)
       }
     }
-    return { results }
+    const res = { results }
+    endTimer()
+    return res
   }
 
   private extractId(hit: any): string {
@@ -222,9 +240,29 @@ export class SearchService {
   async indexDoc(index: string, id: string, body: any) {
     try {
       await this.client.post(`/api/${index}/_doc/${id}`, body)
+      // record index lag if available
+      try {
+        if (body && body.createdAt) {
+          const ts = new Date(body.createdAt).getTime()
+          if (isFinite(ts)) {
+            const lagSec = Math.max(0, (Date.now() - ts) / 1000)
+            this.indexLag.observe(lagSec)
+          }
+        }
+      } catch {}
       return true
     } catch (e) {
       this.logger.warn(`index ${index}/${id} failed: ${String((e as any)?.message || e)}`)
+      return false
+    }
+  }
+
+  async deleteDoc(index: string, id: string) {
+    try {
+      await this.client.delete(`/api/${index}/_doc/${id}`)
+      return true
+    } catch (e) {
+      this.logger.warn(`delete ${index}/${id} failed: ${String((e as any)?.message || e)}`)
       return false
     }
   }

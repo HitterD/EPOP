@@ -1,25 +1,30 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, LessThan } from 'typeorm'
 import { FileEntity } from '../entities/file.entity'
 import { FileLink } from '../entities/file-link.entity'
 import { ConfigService } from '@nestjs/config'
-import { S3Client, GetObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, GetObjectCommand, DeleteObjectCommand, CopyObjectCommand, ListObjectVersionsCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { createPresignedPost, PresignedPost } from '@aws-sdk/s3-presigned-post'
 import { v4 as uuidv4 } from 'uuid'
 import { decodeCursor, encodeCursor } from '../common/pagination/cursor'
 import type { Response } from 'express'
 import { Readable } from 'node:stream'
+import { Queue } from 'bullmq'
+import { SEARCH_QUEUE } from '../queues/queues.module'
 
 @Injectable()
 export class FilesService {
   private s3: S3Client
   private bucket: string
+  private s3Secondary?: S3Client
+  private bucketSecondary?: string
 
   constructor(
     @InjectRepository(FileEntity) private readonly files: Repository<FileEntity>,
     @InjectRepository(FileLink) private readonly links: Repository<FileLink>,
     private readonly config: ConfigService,
+    @Inject(SEARCH_QUEUE) private readonly searchQueue: Queue,
   ) {
     const endpoint = this.config.get<string>('MINIO_ENDPOINT') || 'localhost'
     const port = this.config.get<number>('MINIO_PORT') || 9000
@@ -33,6 +38,25 @@ export class FilesService {
       forcePathStyle: true,
       credentials: { accessKeyId, secretAccessKey },
     })
+
+    // Optional secondary S3 profile (e.g., Synology S3)
+    const secondaryEnabled = String(this.config.get<string>('S3_SECONDARY_ENABLED') || 'false').toLowerCase() === 'true'
+    if (secondaryEnabled) {
+      const secEndpoint = this.config.get<string>('S3_SECONDARY_ENDPOINT') || ''
+      const secPort = Number(this.config.get<number>('S3_SECONDARY_PORT') || 9000)
+      const secUseSSL = String(this.config.get<string>('S3_SECONDARY_USE_SSL') || 'false').toLowerCase() === 'true'
+      const secAccessKeyId = this.config.get<string>('S3_SECONDARY_ACCESS_KEY') || ''
+      const secSecretAccessKey = this.config.get<string>('S3_SECONDARY_SECRET_KEY') || ''
+      this.bucketSecondary = this.config.get<string>('S3_SECONDARY_BUCKET') || this.bucket
+      if (secEndpoint && secAccessKeyId && secSecretAccessKey) {
+        this.s3Secondary = new S3Client({
+          region: 'us-east-1',
+          endpoint: `${secUseSSL ? 'https' : 'http'}://${secEndpoint}:${secPort}`,
+          forcePathStyle: true,
+          credentials: { accessKeyId: secAccessKeyId, secretAccessKey: secSecretAccessKey },
+        })
+      }
+    }
   }
 
   async presign(ownerId: string | null, filename: string) {
@@ -63,14 +87,16 @@ export class FilesService {
       if (file.s3Key && file.s3Key.startsWith('uploads-temp/')) {
         const destKey = `uploads/${file.id}-${file.filename}`
         if (destKey !== file.s3Key) {
-          await this.s3.send(new CopyObjectCommand({ Bucket: this.bucket, CopySource: `/${this.bucket}/${file.s3Key}`, Key: destKey }))
+          const resp = await this.s3.send(new CopyObjectCommand({ Bucket: this.bucket, CopySource: `/${this.bucket}/${file.s3Key}`, Key: destKey }))
           try { await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: file.s3Key })) } catch {}
           file.s3Key = destKey
+          try { file.s3VersionId = (resp as any)?.VersionId ?? file.s3VersionId ?? null } catch {}
           await this.files.save(file)
         }
       }
     } catch {}
     const link = await this.links.save(this.links.create({ file: { id: fileId } as any, refTable: dto.refTable, refId: dto.refId }))
+    try { await this.searchQueue.add('index_doc', { entity: 'files', id: String(file.id) }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 }, removeOnComplete: 200, removeOnFail: 500 }) } catch {}
     return { success: true, linkId: link.id }
   }
 
@@ -84,6 +110,7 @@ export class FilesService {
     const file = await this.files.findOne({ where: { id } })
     if (!file) throw new NotFoundException('File not found')
     await this.files.remove(file)
+    try { await this.searchQueue.add('delete_doc', { entity: 'files', id: String(id) }, { attempts: 2, backoff: { type: 'fixed', delay: 2000 }, removeOnComplete: 200, removeOnFail: 500 }) } catch {}
     return { success: true }
   }
 
@@ -169,6 +196,9 @@ export class FilesService {
         }
       }
     } catch {}
+    // Optional background replication to secondary
+    try { await this.replicateToSecondary(file)    } catch {}
+    try { await this.searchQueue.add('index_doc', { entity: 'files', id: String(file.id) }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 }, removeOnComplete: 200, removeOnFail: 500 }) } catch {}
     return file
   }
 
@@ -190,4 +220,71 @@ export class FilesService {
     }
     return { deleted }
   }
+
+  async listVersions(id: string) {
+    const file = await this.files.findOne({ where: { id } })
+    if (!file) throw new NotFoundException('File not found')
+    try {
+      const out = await this.s3.send(new ListObjectVersionsCommand({ Bucket: this.bucket, Prefix: file.s3Key }))
+      const versions = (out.Versions || [])
+        .filter((v) => v.Key === file.s3Key)
+        .map((v) => ({ versionId: v.VersionId, size: v.Size, isLatest: v.IsLatest, lastModified: v.LastModified }))
+      return { key: file.s3Key, versions }
+    } catch {
+      return { key: file.s3Key, versions: [] }
+    }
+  }
+
+  async updateRetention(id: string, policy: string | null) {
+    const file = await this.files.findOne({ where: { id } })
+    if (!file) throw new NotFoundException('File not found')
+    file.retentionPolicy = policy
+    file.retentionExpiresAt = computeRetentionExpiry(policy)
+    await this.files.save(file)
+    return { success: true, retentionPolicy: file.retentionPolicy, retentionExpiresAt: file.retentionExpiresAt }
+  }
+
+  async purgeRetentionExpired(batch = 200) {
+    const now = new Date()
+    const rows: Array<{ id: string; s3_key: string }> = await this.files.query(
+      `SELECT id, s3_key FROM files WHERE retention_expires_at IS NOT NULL AND retention_expires_at < $1 ORDER BY id ASC LIMIT $2`,
+      [now, Math.max(1, batch)],
+    )
+    let deleted = 0
+    for (const r of rows) {
+      try { await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: r.s3_key })) ; deleted++ } catch {}
+      try { await this.files.delete({ id: r.id }) } catch {}
+    }
+    return { deleted }
+  }
+
+  private async replicateToSecondary(file: FileEntity) {
+    if (!this.s3Secondary || !this.bucketSecondary) return { replicated: false }
+    try {
+      const obj = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: file.s3Key }))
+      const body = obj.Body as Readable
+      await this.s3Secondary.send(new PutObjectCommand({ Bucket: this.bucketSecondary, Key: file.s3Key, Body: body, ContentType: file.mime || 'application/octet-stream' }))
+      return { replicated: true }
+    } catch {
+      return { replicated: false }
+    }
+  }
+}
+
+function computeRetentionExpiry(policy: string | null | undefined): Date | null {
+  if (!policy) return null
+  const now = Date.now()
+  const toDate = (ms: number) => new Date(now + ms)
+  const day = 24 * 3600 * 1000
+  const map: Record<string, number> = {
+    '30d': 30 * day,
+    '90d': 90 * day,
+    '1y': 365 * day,
+    '7y': 7 * 365 * day,
+    'permanent': 0,
+  }
+  const dur = map[policy]
+  if (dur === undefined) return null
+  if (dur === 0) return null
+  return toDate(dur)
 }

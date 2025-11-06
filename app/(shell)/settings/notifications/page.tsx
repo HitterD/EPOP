@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import {
   useNotificationPreferences,
   useUpdateNotificationPreferences,
@@ -18,6 +19,8 @@ import {
   getCurrentSubscription,
   unsubscribeFromPush,
 } from '@/lib/utils/web-push'
+import { PreferencesMatrix } from '@/features/notifications/components/preferences-matrix'
+import { QuietHours } from '@/features/notifications/components/quiet-hours'
 
 export default function NotificationSettingsPage() {
   const { data: prefs } = useNotificationPreferences()
@@ -60,7 +63,24 @@ export default function NotificationSettingsPage() {
 
   return (
     <div className="h-full overflow-auto p-6">
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-5xl space-y-6">
+        {/* Page Header */}
+        <div>
+          <h1 className="text-3xl font-bold">Notification Settings</h1>
+          <p className="text-muted-foreground">
+            Manage how and when you receive notifications across EPop
+          </p>
+        </div>
+
+        {/* Wave-3: Preferences Matrix */}
+        <PreferencesMatrix />
+
+        {/* Wave-3: Quiet Hours */}
+        <QuietHours />
+
+        <Separator className="my-8" />
+
+        {/* Existing Web Push Settings */}
         <Card>
           <CardHeader>
             <CardTitle>Notifications</CardTitle>

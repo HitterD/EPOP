@@ -46,3 +46,9 @@ storybook-static
 /public/workbox-*.js.map
 
 *storybook.log
+
+**/node_modules/
+**/dist/
+**/build/
+docker/postgres-data/
+docker/minio-data/

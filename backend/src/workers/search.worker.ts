@@ -52,6 +52,13 @@ export class SearchWorkerService implements OnModuleInit, OnModuleDestroy {
           await this.search.backfill(entity)
           return { backfilled: true }
         }
+        if (name === 'delete_doc') {
+          const entity: 'messages'|'mail_messages'|'files'|'tasks' = data.entity
+          const id: string = String(data.id)
+          if (!entity || !id) return { skipped: true }
+          await this.search.deleteDoc(this.idx(entity), id)
+          return { deleted: true }
+        }
         return { skipped: true }
       },
       { connection: { url }, concurrency },

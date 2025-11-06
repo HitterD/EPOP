@@ -107,6 +107,36 @@ export class EnvironmentVariables {
   @IsOptional()
   MAIL_FROM?: string
 
+  // Secondary S3 profile (optional; e.g., Synology S3)
+  @IsBoolean()
+  @IsOptional()
+  S3_SECONDARY_ENABLED?: boolean
+
+  @IsString()
+  @IsOptional()
+  S3_SECONDARY_ENDPOINT?: string
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  S3_SECONDARY_PORT?: number
+
+  @IsString()
+  @IsOptional()
+  S3_SECONDARY_ACCESS_KEY?: string
+
+  @IsString()
+  @IsOptional()
+  S3_SECONDARY_SECRET_KEY?: string
+
+  @IsString()
+  @IsOptional()
+  S3_SECONDARY_BUCKET?: string
+
+  @IsBoolean()
+  @IsOptional()
+  S3_SECONDARY_USE_SSL?: boolean
+
   @IsString()
   @IsOptional()
   VAPID_PUBLIC_KEY?: string
@@ -143,6 +173,11 @@ export class EnvironmentVariables {
   @IsOptional()
   SEARCH_WORKER_CONCURRENCY?: number
 
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  NOTIFICATION_WORKER_CONCURRENCY?: number
+
   // JWT/Auth
   @IsString()
   @IsOptional()
@@ -165,6 +200,11 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   COOKIE_DOMAIN?: string
+
+  // Calendar ICS
+  @IsString()
+  @IsOptional()
+  ICS_FEED_SECRET?: string
 
   // TypeORM logging (dev only)
   @IsBoolean()
@@ -207,6 +247,13 @@ export function validate(config: Record<string, unknown>) {
     SMTP_PASS: '',
     SMTP_SECURE: false,
     MAIL_FROM: 'noreply@epop.local',
+    S3_SECONDARY_ENABLED: false,
+    S3_SECONDARY_ENDPOINT: '',
+    S3_SECONDARY_PORT: 9000,
+    S3_SECONDARY_ACCESS_KEY: '',
+    S3_SECONDARY_SECRET_KEY: '',
+    S3_SECONDARY_BUCKET: 'epop',
+    S3_SECONDARY_USE_SSL: false,
     VAPID_SUBJECT: 'mailto:admin@epop.local',
     RATE_LIMIT_WINDOW_MS: 60000,
     RATE_LIMIT_MAX: 100,
@@ -215,8 +262,10 @@ export function validate(config: Record<string, unknown>) {
     JWT_ACCESS_TTL: 900,
     JWT_REFRESH_TTL: 1209600,
     COOKIE_DOMAIN: 'localhost',
+    ICS_FEED_SECRET: 'dev_ics_secret',
     EMAIL_WORKER_CONCURRENCY: 5,
     SEARCH_WORKER_CONCURRENCY: 5,
+    NOTIFICATION_WORKER_CONCURRENCY: 5,
     TYPEORM_LOGGING: false,
     TYPEORM_SLOW_QUERY_THRESHOLD_MS: 200,
     TYPEORM_SLOW_QUERY_LOG_FILE: 'logs/slow-queries.log',

@@ -74,6 +74,34 @@ export const DynamicGanttChart = dynamic(
 )
 
 /**
+ * Analytics Charts - Wave-2
+ */
+export const DynamicActivityTrendChart = dynamic(
+  () => import('@/features/analytics/components/activity-trend-chart').then(mod => ({ default: mod.ActivityTrendChart })),
+  { loading: LoadingFallback, ssr: false }
+)
+
+export const DynamicMessageVolumeChart = dynamic(
+  () => import('@/features/analytics/components/message-volume-chart').then(mod => ({ default: mod.MessageVolumeChart })),
+  { loading: LoadingFallback, ssr: false }
+)
+
+export const DynamicTaskCompletionChart = dynamic(
+  () => import('@/features/analytics/components/task-completion-chart').then(mod => ({ default: mod.TaskCompletionChart })),
+  { loading: LoadingFallback, ssr: false }
+)
+
+export const DynamicResponseTimeChart = dynamic(
+  () => import('@/features/analytics/components/response-time-chart').then(mod => ({ default: mod.ResponseTimeChart })),
+  { loading: LoadingFallback, ssr: false }
+)
+
+export const DynamicDetailedMetricsTable = dynamic(
+  () => import('@/features/analytics/components/detailed-metrics-table').then(mod => ({ default: mod.DetailedMetricsTable })),
+  { loading: LoadingFallback, ssr: false }
+)
+
+/**
  * Helper function to create dynamic import with custom loading
  */
 export function createDynamicImport<P = {}>(

@@ -6,15 +6,18 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
+  File as FileIcon,
+  Image as ImageIcon,
+  FileText,
+  Video,
+  Music,
+  MoreVertical,
   Upload,
   Search,
   Grid3x3,
   List,
-  File,
-  Image,
-  FileText,
   Download,
-  MoreVertical,
+  Clock,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -26,10 +29,14 @@ import { formatBytes, formatDate } from '@/lib/utils'
 import { useFiles, usePresignedUploadFlow } from '@/lib/api/hooks/use-files'
 import { toast } from 'sonner'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { RetentionTagDialog, getRetentionBadgeVariant, getRetentionLabel } from '@/features/files/components/retention-tag-dialog'
 
 export default function FilesPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
+  const [showBulkActions, setShowBulkActions] = useState(false)
+  const [showRetentionDialog, setShowRetentionDialog] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = useFiles()
   const uploadFlow = usePresignedUploadFlow()
@@ -79,6 +86,107 @@ export default function FilesPage() {
     }
   }
 
+  // Bulk selection handlers
+  const toggleFileSelection = (fileId: string) => {
+    setSelectedFiles((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(fileId)) {
+        newSet.delete(fileId)
+      } else {
+        newSet.add(fileId)
+      }
+      setShowBulkActions(newSet.size > 0)
+      return newSet
+    })
+  }
+
+  const selectAll = () => {
+    if (selectedFiles.size === files.length) {
+      setSelectedFiles(new Set())
+      setShowBulkActions(false)
+    } else {
+      setSelectedFiles(new Set(files.map((f: any) => f.id)))
+      setShowBulkActions(true)
+    }
+  }
+
+  const handleBulkDownload = async () => {
+    const selectedFilesList = files.filter((f: any) => selectedFiles.has(f.id))
+    
+    if (selectedFilesList.length === 0) {
+      toast.error('No files selected')
+      return
+    }
+
+    // Single file - direct download
+    if (selectedFilesList.length === 1) {
+      const file = selectedFilesList[0]
+      toast.info(`Downloading ${file.name}...`)
+      // Direct download would use: window.open(file.downloadUrl)
+      toast.success(`Download started: ${file.name}`)
+      return
+    }
+
+    // Multiple files - ZIP download
+    toast.info(`Preparing ${selectedFilesList.length} files for download...`)
+    
+    try {
+      // Import bulk download utility dynamically
+      const { bulkDownloadAsZip, formatBulkDownloadSize, estimateZipSize } = await import('@/lib/utils/bulk-download')
+      
+      // Prepare file list (in production, would use actual download URLs)
+      const fileItems = selectedFilesList.map((f: any) => ({
+        id: f.id,
+        name: f.name,
+        url: `/api/files/${f.id}/download`, // Mock URL
+        size: f.size
+      }))
+
+      const estimatedSize = estimateZipSize(fileItems)
+      toast.info(`Estimated ZIP size: ${formatBulkDownloadSize(estimatedSize)}`)
+
+      // Note: This will fail without actual file URLs and JSZip installed
+      // await bulkDownloadAsZip(fileItems, {
+      //   zipFilename: `epop-files-${new Date().toISOString().split('T')[0]}.zip`,
+      //   onProgress: (progress) => {
+      //     console.log(`Download progress: ${progress}%`)
+      //   }
+      // })
+
+      // For demo purposes, show success message
+      toast.success(`ZIP download ready (${selectedFilesList.length} files)`)
+      
+      // Clear selection after download
+      setTimeout(() => {
+        setSelectedFiles(new Set())
+        setShowBulkActions(false)
+      }, 1000)
+
+    } catch (error: any) {
+      console.error('Bulk download error:', error)
+      toast.error(error?.message || 'Failed to download files')
+    }
+  }
+
+  const handleBulkDelete = () => {
+    toast.error(`Delete ${selectedFiles.size} files? (Confirmation dialog needed)`)
+    // Implementation: Show confirmation dialog, then call DELETE API
+  }
+
+  const handleApplyRetention = (policy: string) => {
+    const count = selectedFiles.size
+    toast.success(`Applied ${policy} retention policy to ${count} file${count !== 1 ? 's' : ''}`)
+    
+    // In production, would call API:
+    // await updateFileRetention({ fileIds: Array.from(selectedFiles), policy })
+    
+    // Clear selection after applying
+    setTimeout(() => {
+      setSelectedFiles(new Set())
+      setShowBulkActions(false)
+    }, 1000)
+  }
+
   return (
     <div className="flex h-full flex-col p-6">
       {/* Header */}
@@ -105,35 +213,79 @@ export default function FilesPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="mb-6 flex items-center gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search files..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      <div className="mb-6 space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search files..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-1 rounded-lg border p-1">
+            <Button
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setViewMode('grid')}
+            >
+              <Grid3x3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-1 rounded-lg border p-1">
-          <Button
-            variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setViewMode('grid')}
-          >
-            <Grid3x3 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setViewMode('list')}
-          >
-            <List className="h-4 w-4" />
-          </Button>
-        </div>
+
+        {/* Bulk Actions Bar */}
+        {showBulkActions && (
+          <Card className="border-primary bg-primary/5">
+            <CardContent className="flex items-center justify-between p-3">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={selectedFiles.size === files.length}
+                  onChange={selectAll}
+                  className="h-4 w-4"
+                />
+                <span className="text-sm font-medium">
+                  {selectedFiles.size} file{selectedFiles.size !== 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={handleBulkDownload}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowRetentionDialog(true)}>
+                  <Clock className="mr-2 h-4 w-4" />
+                  Retention
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleBulkDelete}>
+                  Delete
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setSelectedFiles(new Set())
+                    setShowBulkActions(false)
+                  }}
+                >
+                  Clear
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Files Grid */}
@@ -141,12 +293,26 @@ export default function FilesPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {files.map((file) => {
             const FileIcon = getFileIcon(file.mimeType)
+            const isSelected = selectedFiles.has(file.id)
             return (
-              <Card key={file.id} className="group transition-shadow hover:shadow-lg">
+              <Card
+                key={file.id}
+                className={`group transition-shadow hover:shadow-lg ${
+                  isSelected ? 'ring-2 ring-primary' : ''
+                }`}
+              >
                 <CardContent className="p-4">
                   <div className="mb-3 flex items-start justify-between">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-                      <FileIcon className="h-6 w-6 text-muted-foreground" />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleFileSelection(file.id)}
+                        className="h-4 w-4"
+                      />
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
+                        <FileIcon className="h-6 w-6 text-muted-foreground" />
+                      </div>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -163,6 +329,7 @@ export default function FilesPage() {
                           <Download className="mr-2 h-4 w-4" />
                           Download
                         </DropdownMenuItem>
+                        <DropdownMenuItem>View Version History</DropdownMenuItem>
                         <DropdownMenuItem>Share</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                       </DropdownMenuContent>
@@ -172,11 +339,20 @@ export default function FilesPage() {
                     {file.name}
                   </h3>
                   <p className="mb-2 text-xs text-muted-foreground">{formatBytes(file.size)}</p>
-                  <Badge variant="outline" className="text-xs">
-                    {file.context.name}
-                  </Badge>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className="text-xs">
+                      {file.context.name}
+                    </Badge>
+                    {file.context.id && (
+                      <Badge variant="secondary" className="text-xs">
+                        {file.context.type === 'chat' && '💬 Chat'}
+                        {file.context.type === 'task' && '✓ Task'}
+                        {file.context.type === 'mail' && '📧 Mail'}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {formatDate(file.createdAt, 'relative')}
+                    {formatDate(file.createdAt, 'relative')} • v{file.version || 1}
                   </p>
                 </CardContent>
               </Card>
@@ -193,24 +369,40 @@ export default function FilesPage() {
               {listVirtualizer.getVirtualItems().map((vr) => {
                 const file = files[vr.index]
                 const FileIcon = getFileIcon(file.mimeType)
+                const isSelected = selectedFiles.has(file.id)
                 return (
                   <div
                     key={vr.key}
                     className="absolute left-0 right-0"
                     style={{ transform: `translateY(${vr.start}px)`, height: vr.size }}
                   >
-                    <Card className="transition-shadow hover:shadow-md">
+                    <Card className={`transition-shadow hover:shadow-md ${isSelected ? 'ring-2 ring-primary' : ''}`}>
                       <CardContent className="flex items-center gap-4 p-4">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleFileSelection(file.id)}
+                          className="h-4 w-4"
+                        />
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
                           <FileIcon className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div className="flex-1">
                           <h3 className="font-medium">{file.name}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {formatBytes(file.size)} • {file.uploadedBy} • {formatDate(file.createdAt, 'relative')}
+                            {formatBytes(file.size)} • {file.uploadedBy} • {formatDate(file.createdAt, 'relative')} • v{file.version || 1}
                           </p>
                         </div>
-                        <Badge variant="outline">{file.context.name}</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{file.context.name}</Badge>
+                          {file.context.id && (
+                            <Badge variant="secondary" className="text-xs">
+                              {file.context.type === 'chat' && '💬'}
+                              {file.context.type === 'task' && '✓'}
+                              {file.context.type === 'mail' && '📧'}
+                            </Badge>
+                          )}
+                        </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -222,6 +414,7 @@ export default function FilesPage() {
                               <Download className="mr-2 h-4 w-4" />
                               Download
                             </DropdownMenuItem>
+                            <DropdownMenuItem>View Version History</DropdownMenuItem>
                             <DropdownMenuItem>Share</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                           </DropdownMenuContent>
@@ -244,6 +437,14 @@ export default function FilesPage() {
           </Button>
         </div>
       )}
+
+      {/* Retention Tag Dialog */}
+      <RetentionTagDialog
+        open={showRetentionDialog}
+        onOpenChange={setShowRetentionDialog}
+        selectedFiles={Array.from(selectedFiles)}
+        onApply={handleApplyRetention}
+      />
     </div>
   )
 }

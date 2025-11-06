@@ -95,6 +95,13 @@ export function CommandPalette() {
             <Calendar className="mr-2 h-4 w-4" />
             <span>Calendar</span>
           </CommandItem>
+          <CommandItem
+            onSelect={() => runCommand(() => router.push("/search"))}
+          >
+            <Search className="mr-2 h-4 w-4" />
+            <span>Search</span>
+            <CommandShortcut>⌘/</CommandShortcut>
+          </CommandItem>
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Actions">

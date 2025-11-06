@@ -84,4 +84,25 @@ export class FilesController {
     const hours = Math.max(1, Number(olderThanHours ?? 24))
     return this.files.purgeTemp(hours)
   }
+
+  @Get(':id/versions')
+  @ApiOkResponse({ type: Object })
+  async versions(@Param('id') id: string) {
+    return this.files.listVersions(id)
+  }
+
+  @Patch(':id/retention')
+  @ApiOkResponse({ type: Object })
+  async updateRetention(@Param('id') id: string, @Body() body: { policy?: string | null }) {
+    const policy = (body?.policy ?? null) as any
+    return this.files.updateRetention(id, policy)
+  }
+
+  @Post('purge-retention')
+  @Roles('admin')
+  @ApiOkResponse({ type: Object })
+  async purgeRetention(@Body('batch') batch?: number) {
+    const size = Math.max(1, Math.min(1000, Number(batch ?? 200)))
+    return this.files.purgeRetentionExpired(size)
+  }
 }

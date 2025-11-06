@@ -20,6 +20,9 @@ export class FileEntity {
   @Column({ name: 's3_key', type: 'text' })
   s3Key!: string
 
+  @Column({ name: 's3_version_id', type: 'text', nullable: true })
+  s3VersionId!: string | null
+
   @Column('text', { default: 'pending' })
   status!: 'pending' | 'scanning' | 'ready' | 'infected' | 'failed'
 
@@ -28,6 +31,12 @@ export class FileEntity {
 
   @Column({ name: 'scanned_at', type: 'timestamptz', nullable: true })
   scannedAt!: Date | null
+
+  @Column({ name: 'retention_policy', type: 'text', nullable: true })
+  retentionPolicy!: string | null
+
+  @Column({ name: 'retention_expires_at', type: 'timestamptz', nullable: true })
+  retentionExpiresAt!: Date | null
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz', default: () => 'now()' })
   createdAt!: Date
