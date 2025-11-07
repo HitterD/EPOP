@@ -17,6 +17,7 @@ import { useResilientSocket } from '@/lib/socket/hooks/use-resilient-socket'
 import { Providers } from '@/components/providers/providers'
 import { SkipLinks } from '@/components/accessibility/skip-link'
 import { StatusAnnouncer } from '@/components/accessibility/aria-live'
+import type { ChatMessageEvent, DomainEvent, Notification } from '@/types'
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' })
 export default function ShellLayout({ children }: { children: ReactNode }) {
@@ -33,9 +34,9 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
   // Initialize resilient Socket.IO connection once at shell level
   useResilientSocket(session?.user?.id, '')
 
-  useDomainEvents({
+  useDomainEvents<ChatMessageEvent>({
     eventType: SOCKET_EVENTS.CHAT_MESSAGE_CREATED,
-    onEvent: (event: any) => {
+    onEvent: (event: ChatMessageEvent) => {
       const msg = event?.patch
       toast('New message', {
         description: msg?.content || 'You have a new message',
@@ -49,20 +50,31 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
     },
   })
 
-  useDomainEvents({
+  useDomainEvents<DomainEvent<Notification>>({
     eventType: SOCKET_EVENTS.NOTIFICATION_CREATED,
-    onEvent: (e: any) => {
-      const n = e?.patch
+    onEvent: (event: DomainEvent<Notification>) => {
+      const n = event?.patch
       toast(n?.title || 'Notification', {
         description: n?.message,
         action: n?.actionUrl
           ? {
               label: 'Open',
-              onClick: () => router.push(n.actionUrl),
+              onClick: () => router.push(n.actionUrl!),
             }
           : undefined,
       })
-      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.setQueryData(['notifications'], (old: any) => {
+        if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old
+        const firstPage = old.pages[0]
+        const updatedFirst = {
+          ...firstPage,
+          items: [n, ...(firstPage.items || [])],
+        }
+        return {
+          ...old,
+          pages: [updatedFirst, ...old.pages.slice(1)],
+        }
+      })
     },
   })
 

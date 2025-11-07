@@ -61,13 +61,19 @@ export function WorkloadChart({ data, className }: WorkloadChartProps) {
         <div>
           <div className="font-medium">Most Tasks</div>
           <div className="text-muted-foreground">
-            {data.reduce((max, item) => (item.total > max.total ? item : max), data[0])?.userName}
+            {(
+              data.reduce<WorkloadData>((max, item) => (item.total > max.total ? item : max), data[0] as WorkloadData)
+                .userName
+            )}
           </div>
         </div>
         <div>
           <div className="font-medium">Most Complete</div>
           <div className="text-muted-foreground">
-            {data.reduce((max, item) => (item.done > max.done ? item : max), data[0])?.userName}
+            {(
+              data.reduce<WorkloadData>((max, item) => (item.done > max.done ? item : max), data[0] as WorkloadData)
+                .userName
+            )}
           </div>
         </div>
         <div>

@@ -140,7 +140,10 @@ export function useDirectoryAudit(limit = 50) {
   return useInfiniteQuery({
     queryKey: ['directory-audit'],
     queryFn: async ({ pageParam }) => {
-      const query = buildCursorQuery({ cursor: pageParam as string | undefined, limit })
+      const query = buildCursorQuery({
+        ...(pageParam ? { cursor: pageParam as string } : {}),
+        ...(limit ? { limit } : {}),
+      })
       const res = await apiClient.get<CursorPaginatedResponse<DirectoryAuditEntry>>(
         `/directory/audit${query}`
       )

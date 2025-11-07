@@ -61,10 +61,10 @@ export function EventCreationDialog({
 
     const event: NewEvent = {
       title: title.trim(),
-      description: description.trim() || undefined,
       startDate,
       type,
-      location: location.trim() || undefined,
+      ...(description.trim() ? { description: description.trim() } : {}),
+      ...(location.trim() ? { location: location.trim() } : {}),
     }
 
     onSave(event)

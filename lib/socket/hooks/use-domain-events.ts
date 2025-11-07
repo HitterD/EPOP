@@ -5,9 +5,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { getSocket } from '../client'
 import { DomainEvent } from '@/types'
 
-export type EventHandler<T = any> = (event: DomainEvent<T>) => void
+export type EventHandler<T extends DomainEvent<any>> = (event: T) => void
 
-interface UseDomainEventsOptions<T = any> {
+interface UseDomainEventsOptions<T extends DomainEvent<any>> {
   eventType: string
   onEvent: EventHandler<T>
   enabled?: boolean
@@ -17,7 +17,7 @@ interface UseDomainEventsOptions<T = any> {
  * Hook to listen to domain events from Socket.IO
  * Handles automatic reconciliation with TanStack Query cache
  */
-export function useDomainEvents<T = any>({
+export function useDomainEvents<T extends DomainEvent<any>>({
   eventType,
   onEvent,
   enabled = true,
@@ -33,7 +33,7 @@ export function useDomainEvents<T = any>({
   useEffect(() => {
     if (!enabled) return
 
-    const handler = (event: DomainEvent<T>) => {
+    const handler = (event: T) => {
       handlerRef.current(event)
     }
 
@@ -48,7 +48,7 @@ export function useDomainEvents<T = any>({
 /**
  * Hook to listen to multiple domain events
  */
-export function useMultipleDomainEvents<T = any>(
+export function useMultipleDomainEvents<T extends DomainEvent<any>>(
   events: Array<{ eventType: string; onEvent: EventHandler<T> }>,
   enabled = true
 ) {
@@ -63,7 +63,7 @@ export function useMultipleDomainEvents<T = any>(
     if (!enabled) return
 
     const handlers = events.map(({ eventType, onEvent }) => {
-      const handler = (event: DomainEvent<T>) => {
+      const handler = (event: T) => {
         onEvent(event)
       }
       socket.on(eventType, handler)
@@ -82,10 +82,10 @@ export function useMultipleDomainEvents<T = any>(
  * Hook to reconcile domain events with TanStack Query cache
  * Automatically updates cache when events are received
  */
-export function useEventReconciliation<T = any>(
+export function useEventReconciliation<T extends DomainEvent<any>>(
   eventType: string,
   queryKey: any[],
-  reconcileFn: (event: DomainEvent<T>, currentData: any) => any,
+  reconcileFn: (event: T, currentData: any) => any,
   enabled = true
 ) {
   const queryClient = useQueryClient()
@@ -94,7 +94,7 @@ export function useEventReconciliation<T = any>(
     eventType,
     enabled,
     onEvent: useCallback(
-      (event: DomainEvent<T>) => {
+      (event: T) => {
         queryClient.setQueryData(queryKey, (oldData: any) => {
           if (!oldData) return oldData
           return reconcileFn(event, oldData)

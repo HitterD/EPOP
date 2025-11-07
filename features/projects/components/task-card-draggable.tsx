@@ -240,10 +240,10 @@ export function TaskCardDraggable({
             {task.assignees.slice(0, 3).map((assignee, idx) => (
               <Avatar
                 key={assignee.id}
-                src={assignee.avatar}
+                src={assignee.avatar ?? ''}
                 alt={assignee.name}
                 size="xs"
-                fallback={assignee.name[0]}
+                fallback={assignee.name?.[0] ?? '?'}
                 className="ring-2 ring-white dark:ring-gray-800"
               />
             ))}

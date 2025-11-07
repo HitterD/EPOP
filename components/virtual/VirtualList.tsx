@@ -24,15 +24,19 @@ export default function VirtualList<T>({ items, estimateSize = 56, row, overscan
   return (
     <div ref={parentRef} className={`h-full overflow-auto ${className ?? ''}`}>
       <div style={{ height: v.getTotalSize(), position: 'relative' }}>
-        {v.getVirtualItems().map((vi) => (
-          <div
-            key={vi.key}
-            ref={v.measureElement}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: vi.size }}
-          >
-            {row(items[vi.index], vi.index)}
-          </div>
-        ))}
+        {v.getVirtualItems().map((vi) => {
+          const item = items[vi.index]
+          if (item === undefined) return null
+          return (
+            <div
+              key={vi.key}
+              ref={v.measureElement}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: vi.size }}
+            >
+              {row(item as T, vi.index)}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

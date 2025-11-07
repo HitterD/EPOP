@@ -167,13 +167,13 @@ export function useFocusTrap(active: boolean = true) {
         // Shift + Tab
         if (document.activeElement === firstElement) {
           e.preventDefault()
-          lastElement.focus()
+          lastElement?.focus()
         }
       } else {
         // Tab
         if (document.activeElement === lastElement) {
           e.preventDefault()
-          firstElement.focus()
+          firstElement?.focus()
         }
       }
     }
@@ -181,7 +181,7 @@ export function useFocusTrap(active: boolean = true) {
     // Focus first element
     const focusableElements = getFocusableElements()
     if (focusableElements.length > 0) {
-      focusableElements[0].focus()
+      focusableElements[0]?.focus()
     }
 
     document.addEventListener('keydown', handleKeyDown)

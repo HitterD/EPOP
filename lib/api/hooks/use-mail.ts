@@ -7,7 +7,10 @@ export function useMail(folder: 'received' | 'sent' | 'deleted', limit = 50) {
   return useInfiniteQuery({
     queryKey: ['mail', folder],
     queryFn: async ({ pageParam }) => {
-      const query = buildCursorQuery({ cursor: pageParam, limit })
+      const query = buildCursorQuery({
+        ...(pageParam ? { cursor: pageParam } : {}),
+        ...(limit ? { limit } : {}),
+      })
       const res = await apiClient.get<CursorPaginatedResponse<MailMessage>>(
         `/mail?folder=${folder}${query ? '&' + query.substring(1) : ''}`
       )
@@ -28,12 +31,19 @@ export function useSetMailRead(folder?: 'received' | 'sent' | 'deleted') {
       return res.data
     },
     onMutate: async ({ messageId, isRead }) => {
-      const listKey = folder ? ['mail', folder] : ['mail']
-      const prevList = folder ? qc.getQueryData<MailMessage[]>(listKey) : undefined
+      const listKey = folder ? ['mail', folder] : undefined
+      const prevList = listKey ? qc.getQueryData(listKey) : undefined
       const prevDetail = qc.getQueryData<MailMessage>(['mail-message', messageId])
 
-      if (folder && prevList) {
-        qc.setQueryData<MailMessage[]>(listKey, prevList.map((m) => (m.id === messageId ? { ...m, isRead } : m)))
+      if (listKey) {
+        qc.setQueryData(listKey, (old: any) => {
+          if (!old || !Array.isArray(old.pages)) return old
+          const pages = old.pages.map((p: any) => ({
+            ...p,
+            items: (p.items || []).map((m: MailMessage) => (m.id === messageId ? { ...m, isRead } : m)),
+          }))
+          return { ...old, pages }
+        })
       }
       if (prevDetail) {
         qc.setQueryData<MailMessage>(['mail-message', messageId], { ...prevDetail, isRead })
@@ -51,8 +61,8 @@ export function useSetMailRead(folder?: 'received' | 'sent' | 'deleted') {
         qc.setQueryData(['mail-message', id], ctx.prevDetail)
       }
     },
-    onSettled: (_data, _err, vars) => {
-      qc.invalidateQueries({ queryKey: ['mail'] })
+    onSuccess: (_data, vars) => {
+      // Ensure detail reflects server
       qc.invalidateQueries({ queryKey: ['mail-message', vars.messageId] })
     },
   })
@@ -75,8 +85,18 @@ export function useSendMail() {
       if (!res.success || !res.data) throw new Error('Failed to send mail')
       return res.data
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['mail', 'sent'] })
+    onSuccess: (msg) => {
+      qc.setQueryData(['mail', 'sent'], (old: any) => {
+        if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old
+        const first = old.pages[0]
+        return {
+          ...old,
+          pages: [
+            { ...first, items: [msg, ...(first.items || [])] },
+            ...old.pages.slice(1),
+          ],
+        }
+      })
     },
   })
 }
@@ -105,9 +125,32 @@ export function useMoveMail() {
       if (!res.success || !res.data) throw new Error('Failed to move message')
       return res.data
     },
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['mail', variables.folder] })
-      qc.invalidateQueries({ queryKey: ['mail-message'] })
+    onSuccess: (msg, variables) => {
+      // Add to destination folder first page
+      qc.setQueryData(['mail', variables.folder], (old: any) => {
+        if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old
+        const first = old.pages[0]
+        return {
+          ...old,
+          pages: [
+            { ...first, items: [msg, ...(first.items || [])] },
+            ...old.pages.slice(1),
+          ],
+        }
+      })
+      // Remove from other folders if present
+      ;(['received','sent','deleted'] as const).forEach((f) => {
+        if (f === variables.folder) return
+        qc.setQueryData(['mail', f], (old: any) => {
+          if (!old || !Array.isArray(old.pages)) return old
+          const pages = old.pages.map((p: any) => ({
+            ...p,
+            items: (p.items || []).filter((m: MailMessage) => m.id !== variables.messageId),
+          }))
+          return { ...old, pages }
+        })
+      })
+      qc.invalidateQueries({ queryKey: ['mail-message', variables.messageId] })
     },
   })
 }

@@ -125,7 +125,7 @@ export default function CalendarPage() {
 
   // Handle click on empty slot - create new event
   const handleSlotClick = (date: Date, hour?: number) => {
-    setNewEventSlot({ date, hour })
+    setNewEventSlot({ date, ...(hour !== undefined ? { hour } : {}) })
     setShowCreateDialog(true)
   }
 
@@ -135,7 +135,6 @@ export default function CalendarPage() {
       id: `event-${Date.now()}`,
       title: newEvent.title,
       startDate: newEvent.startDate,
-      endDate: newEvent.endDate,
       type: newEvent.type,
       color: {
         task: 'bg-green-500',
@@ -143,8 +142,9 @@ export default function CalendarPage() {
         mail: 'bg-purple-500',
         reminder: 'bg-orange-500',
       }[newEvent.type],
-      description: newEvent.description,
-      location: newEvent.location,
+      ...(newEvent.endDate ? { endDate: newEvent.endDate } : {}),
+      ...(newEvent.description ? { description: newEvent.description } : {}),
+      ...(newEvent.location ? { location: newEvent.location } : {}),
     }
 
     setEvents([...events, event])
@@ -167,7 +167,7 @@ export default function CalendarPage() {
           <h1 className="text-3xl font-bold">Calendar & Planner</h1>
           <p className="text-muted-foreground">
             {view === 'month' && format(currentDate, 'MMMM yyyy')}
-            {view === 'week' && `Week of ${format(weekDays[0], 'MMM d')} - ${format(weekDays[6], 'MMM d, yyyy')}`}
+            {view === 'week' && weekDays.length >= 7 && `Week of ${format(weekDays[0]!, 'MMM d')} - ${format(weekDays[6]!, 'MMM d, yyyy')}`}
             {view === 'day' && format(currentDate, 'EEEE, MMMM d, yyyy')}
             {view === 'agenda' && 'Upcoming Events'}
           </p>
@@ -391,13 +391,15 @@ export default function CalendarPage() {
       </Card>
 
       {/* Event Creation Dialog */}
-      <EventCreationDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        date={newEventSlot?.date}
-        hour={newEventSlot?.hour}
-        onSave={handleCreateEvent}
-      />
+      {showCreateDialog && newEventSlot?.date && (
+        <EventCreationDialog
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
+          date={newEventSlot.date}
+          {...(newEventSlot.hour !== undefined ? { hour: newEventSlot.hour } : {})}
+          onSave={handleCreateEvent}
+        />
+      )}
     </div>
     </DndContext>
   )

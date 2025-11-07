@@ -9,6 +9,7 @@ import { ProjectMemberGuard } from '../common/guards/project-member.guard'
 import { Project } from '../entities/project.entity'
 import { Task } from '../entities/task.entity'
 import { CursorTasksResponse } from '../common/dto/cursor-response.dto'
+import { AddDependencyDto, AddMemberDto, CreateBucketDto, CreateProjectDto, CreateTaskDto, MoveTaskDto, ReorderTasksDto, RescheduleTaskDto } from './dto/requests.dto'
 
 @UseGuards(AuthGuard('jwt'))
 @ApiTags('projects')
@@ -25,7 +26,7 @@ export class ProjectsController {
 
   @Post()
   @ApiOkResponse({ type: Project })
-  async create(@Req() req: any, @Body() body: { name: string; description?: string | null }) {
+  async create(@Req() req: any, @Body() body: CreateProjectDto) {
     return this.projects.createProject(req.user.userId, body)
   }
 
@@ -33,7 +34,7 @@ export class ProjectsController {
   @UseGuards(ProjectMemberGuard)
   @ProjectMember()
   @ApiOkResponse({ type: Object })
-  async addMember(@Req() req: any, @Param('projectId') projectId: string, @Body() body: { userId: string; role?: string }) {
+  async addMember(@Req() req: any, @Param('projectId') projectId: string, @Body() body: AddMemberDto) {
     return this.projects.addMember(req.user.userId, projectId, body.userId, body.role ?? 'member')
   }
 
@@ -41,7 +42,7 @@ export class ProjectsController {
   @UseGuards(ProjectMemberGuard)
   @ProjectMember()
   @ApiOkResponse({ type: Object })
-  async createBucket(@Req() req: any, @Param('projectId') projectId: string, @Body() body: { name: string; position: number }) {
+  async createBucket(@Req() req: any, @Param('projectId') projectId: string, @Body() body: CreateBucketDto) {
     return this.projects.createBucket(req.user.userId, projectId, body.name, body.position)
   }
 
@@ -52,7 +53,7 @@ export class ProjectsController {
   async createTask(
     @Req() req: any,
     @Param('projectId') projectId: string,
-    @Body() body: { bucketId?: string | null; title: string; description?: string | null; position: number },
+    @Body() body: CreateTaskDto,
   ) {
     return this.projects.createTask(req.user.userId, { projectId, bucketId: body.bucketId ?? null, title: body.title, description: body.description ?? null, position: body.position })
   }
@@ -86,7 +87,7 @@ export class ProjectsController {
     @Req() req: any,
     @Param('projectId') projectId: string,
     @Param('taskId') taskId: string,
-    @Body() body: { bucketId?: string | null; position?: number; orderIndex?: number },
+    @Body() body: MoveTaskDto,
   ) {
     const pos = body.position ?? body.orderIndex ?? 0
     return this.projects.moveTask(req.user.userId, taskId, { projectId, bucketId: body.bucketId ?? null, position: pos })
@@ -99,7 +100,7 @@ export class ProjectsController {
     @Req() req: any,
     @Param('projectId') projectId: string,
     @Param('taskId') taskId: string,
-    @Body() body: { bucketId?: string | null; position?: number; orderIndex?: number },
+    @Body() body: MoveTaskDto,
   ) {
     const pos = body.position ?? body.orderIndex ?? 0
     return this.projects.moveTask(req.user.userId, taskId, { projectId, bucketId: body.bucketId ?? null, position: pos })
@@ -130,9 +131,9 @@ export class ProjectsController {
     @Req() req: any,
     @Param('projectId') projectId: string,
     @Param('bucketId') bucketId: string,
-    @Body('taskIds') taskIds: string[],
+    @Body() dto: ReorderTasksDto,
   ) {
-    return this.projects.reorderBucket(req.user.userId, projectId, bucketId, taskIds || [])
+    return this.projects.reorderBucket(req.user.userId, projectId, bucketId, dto.taskIds || [])
   }
 
   // --- Task Dependencies ---
@@ -161,7 +162,7 @@ export class ProjectsController {
   async addDependency(
     @Req() req: any,
     @Param('projectId') projectId: string,
-    @Body() body: { predecessorId: string; successorId: string; lagDays?: number },
+    @Body() body: AddDependencyDto,
   ) {
     const lag = typeof body.lagDays === 'number' ? body.lagDays : 0
     return this.projects.addDependency(req.user.userId, projectId, body.predecessorId, body.successorId, lag)
@@ -185,7 +186,7 @@ export class ProjectsController {
     @Req() req: any,
     @Param('projectId') projectId: string,
     @Param('taskId') taskId: string,
-    @Body() body: { startAt?: string | null; dueAt?: string | null; cascade?: boolean },
+    @Body() body: RescheduleTaskDto,
   ) {
     return this.projects.rescheduleTask(req.user.userId, projectId, taskId, body)
   }

@@ -11,6 +11,7 @@ import { OrgTree } from '@/features/directory/components/org-tree'
 import { useDomainEvents } from '@/lib/socket/hooks/use-domain-events'
 import { SOCKET_EVENTS } from '@/lib/constants'
 import { useQueryClient } from '@tanstack/react-query'
+import type { DomainEvent } from '@/types'
 
 function UnitNode({ id, name, members, units }: { id: string; name: string; members: number; units?: any[] }) {
   return (
@@ -60,16 +61,16 @@ export default function DirectoryPage() {
   }
 
   // Listen to directory events and refresh data
-  useDomainEvents({
+  useDomainEvents<DomainEvent<any>>({
     eventType: SOCKET_EVENTS.DIRECTORY_UNIT_UPDATED,
-    onEvent: () => {
+    onEvent: (_e) => {
       qc.invalidateQueries({ queryKey: ['org-tree'] })
       qc.invalidateQueries({ queryKey: ['directory-audit'] })
     },
   })
-  useDomainEvents({
+  useDomainEvents<DomainEvent<any>>({
     eventType: SOCKET_EVENTS.DIRECTORY_USER_MOVED,
-    onEvent: () => {
+    onEvent: (_e) => {
       qc.invalidateQueries({ queryKey: ['org-tree'] })
       qc.invalidateQueries({ queryKey: ['directory-audit'] })
     },

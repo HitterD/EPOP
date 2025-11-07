@@ -13,6 +13,12 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = accessToken.split('_')[1]
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
+        { status: 401 }
+      )
+    }
     const userChats = db.getUserChats(userId)
 
     return NextResponse.json({
@@ -39,6 +45,12 @@ export async function POST(request: NextRequest) {
 
     const { type, name, members } = await request.json()
     const userId = accessToken.split('_')[1]
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
+        { status: 401 }
+      )
+    }
 
     const newChat = db.createChat({
       id: `chat-${Date.now()}`,

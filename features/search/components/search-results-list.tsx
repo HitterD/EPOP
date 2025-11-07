@@ -20,6 +20,10 @@ interface SearchResult {
     fileSize?: number
     date?: string
     status?: string
+    avatar?: string
+    name?: string
+    email?: string
+    department?: string
   }
 }
 
@@ -88,7 +92,6 @@ function MessageResult({ result, query, highlightText }: any) {
               src={result.metadata.sender.avatar}
               alt={result.metadata.sender.name}
               size="xs"
-              fallback={result.metadata.sender.name[0]}
             />
           )}
           <span className="text-sm font-medium">
@@ -150,9 +153,8 @@ function UserResult({ result, query, highlightText }: any) {
       <div className="flex-shrink-0">
         <Avatar
           src={result.metadata?.avatar}
-          alt={result.title}
+          alt={result.metadata?.name}
           size="sm"
-          fallback={result.title[0]}
         />
       </div>
       <div className="flex-1 min-w-0">

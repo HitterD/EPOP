@@ -72,10 +72,10 @@ export function AuditEventRow({ event, className }: AuditEventRowProps) {
         <div className="flex items-start justify-between gap-2 mb-1">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <Avatar
-              src={event.actor.avatar}
+              {...(event.actor.avatar ? { src: event.actor.avatar } : {})}
               alt={event.actor.name}
               size="sm"
-              fallback={event.actor.name}
+              fallback={event.actor.name?.[0] ?? 'U'}
             />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium leading-none mb-1">

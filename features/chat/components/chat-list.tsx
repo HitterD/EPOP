@@ -72,6 +72,7 @@ export function ChatList({ chats, activeChatId }: ChatListProps) {
           >
             {rowVirtualizer.getVirtualItems().map((vr: VirtualItem) => {
               const chat = sortedChats[vr.index]
+              if (!chat) return null
               return (
                 <div
                   key={vr.key}
@@ -86,7 +87,7 @@ export function ChatList({ chats, activeChatId }: ChatListProps) {
                       )}
                     >
                       <AvatarWithPresence
-                        src={chat.avatar}
+                        {...(chat.avatar ? { src: chat.avatar } : {})}
                         alt={chat.name || 'Chat'}
                         fallback={getInitials(chat.name || 'Chat')}
                         status="available"

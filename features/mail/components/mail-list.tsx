@@ -102,15 +102,14 @@ function MailListItem({
       className={cn(
         'flex items-start gap-3 p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors',
         isActive && 'bg-blue-50 dark:bg-blue-900/20',
-        !mail.read && 'font-semibold'
+        !mail.isRead && 'font-semibold'
       )}
       onClick={onSelect}
       data-testid="mail-item"
     >
       <Checkbox
         checked={isSelected}
-        onCheckedChange={(e) => {
-          e.stopPropagation()
+        onCheckedChange={() => {
           onToggleSelect()
         }}
         onClick={(e) => e.stopPropagation()}
@@ -118,9 +117,9 @@ function MailListItem({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium truncate">{mail.from.name}</span>
+          <span className="font-medium truncate break-all">{mail.from}</span>
           
-          {mail.starred && (
+          {mail.isStarred && (
             <Star size={14} className="text-yellow-500 fill-yellow-500 flex-shrink-0" />
           )}
           

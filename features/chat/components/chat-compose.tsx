@@ -62,7 +62,8 @@ export function ChatCompose({ chatId }: ChatComposeProps) {
 
     // FE-10: Send as Mail path
     if (sendAsMail) {
-      const subject = message.trim().split('\n')[0].slice(0, 120)
+      const [firstLine] = message.trim().split('\n')
+      const subject = (firstLine ?? '').slice(0, 120)
       const bodyHtml = message.trim().replace(/\n/g, '<br/>')
       const attParam = selectedAttachments.length
         ? `&attachments=${encodeURIComponent(JSON.stringify(selectedAttachments))}`

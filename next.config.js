@@ -20,7 +20,7 @@ const nextConfig = {
   swcMinify: true,
   eslint: {
     dirs: ['app', 'components', 'features', 'lib', 'types'],
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
     ignoreBuildErrors: true,

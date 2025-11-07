@@ -59,6 +59,7 @@ export function VirtualizedFileList({
       >
         {items.map((virtualRow) => {
           const file = files[virtualRow.index]
+          if (!file) return null
           const isSelected = selectedIds.includes(file.id)
 
           return (
@@ -79,7 +80,7 @@ export function VirtualizedFileList({
                   file={file}
                   isSelected={isSelected}
                   onClick={() => onFileClick(file)}
-                  onToggleSelect={onToggleSelect ? () => onToggleSelect(file.id) : undefined}
+                  {...(onToggleSelect ? { onToggleSelect: () => onToggleSelect(file.id) } : {})}
                 />
               ) : (
                 <FileGridItem

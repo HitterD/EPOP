@@ -141,7 +141,7 @@ export function MessageAttachments({ attachments, compact = false }: MessageAtta
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <span>{formatFileSize(attachment.size)}</span>
                     <span>•</span>
-                    <span>{attachment.mimeType.split('/')[1].toUpperCase()}</span>
+                    <span>{(attachment.mimeType.split('/')[1] ?? attachment.mimeType).toUpperCase()}</span>
                   </div>
                 </div>
 
@@ -193,6 +193,7 @@ export function MessageAttachments({ attachments, compact = false }: MessageAtta
             const newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1
             if (newIndex >= 0 && newIndex < attachments.length) {
               const newAttachment = attachments[newIndex]
+              if (!newAttachment) return
               setPreviewFile({
                 id: newAttachment.id,
                 name: newAttachment.name,

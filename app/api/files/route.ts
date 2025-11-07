@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
   const accessToken = cookies().get('accessToken')?.value
   if (!accessToken) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }, { status: 401 })
   const userId = accessToken.split('_')[1]
+  if (!userId) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 })
   const body = await request.json()
   const now = new Date().toISOString()
   const uploader = db.getUser(userId)
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     url: body.url || `/uploads/${body.name}`,
     thumbnailUrl: body.thumbnailUrl,
     uploadedBy: uploader
-      ? { id: uploader.id, name: uploader.name, avatar: uploader.avatar }
+      ? { id: uploader.id, name: uploader.name, ...(uploader.avatar ? { avatar: uploader.avatar } : {}) }
       : { id: userId, name: 'Unknown' },
     status: 'ready',
     context: body.context,

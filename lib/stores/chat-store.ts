@@ -77,7 +77,8 @@ export const useChatStore = create<ChatState>()(
         state.messages.forEach((messages, chatId) => {
           const index = messages.findIndex((m) => m.id === messageId)
           if (index !== -1) {
-            messages[index] = { ...messages[index], ...updates }
+            const merged = { ...(messages[index] as Message), ...(updates as Partial<Message>) } as Message
+            messages[index] = merged
             state.messages.set(chatId, [...messages])
           }
         })

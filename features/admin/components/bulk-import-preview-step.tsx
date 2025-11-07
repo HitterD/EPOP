@@ -61,7 +61,7 @@ export function BulkImportPreviewStep({
         .flatMap((row) =>
           row.errors?.map((err) => ({
             row: row.row,
-            field: err.field,
+            ...(err.field ? { field: err.field } : {}),
             message: err.message,
           })) || []
         )

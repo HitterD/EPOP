@@ -192,7 +192,7 @@ export function OptimisticMessageList({
   // Auto-scroll to bottom on new messages (if not user scrolling)
   useEffect(() => {
     if (!isUserScrolling && allMessages.length > 0) {
-      const lastMessage = allMessages[allMessages.length - 1]
+      const lastMessage = allMessages[allMessages.length - 1]!
       if (lastMessage.id !== lastMessageRef.current) {
         scrollToBottom('smooth')
         lastMessageRef.current = lastMessage.id
@@ -309,7 +309,7 @@ export function OptimisticMessageList({
       const m = updated.get(tempId)
       if (m) {
         m._status = 'sending'
-        m._error = undefined
+        delete m._error
       }
       return updated
     })
@@ -349,8 +349,8 @@ export function OptimisticMessageList({
       {hasNextPage && (
         <div className="sticky top-0 z-10 flex justify-center p-2">
           <LoadMoreButton
-            onClick={onLoadMore}
-            loading={isFetchingNextPage}
+            onClick={onLoadMore ? () => onLoadMore() : () => {}}
+            loading={!!isFetchingNextPage}
           />
         </div>
       )}
@@ -373,7 +373,8 @@ export function OptimisticMessageList({
             {/* Messages for this date */}
             {msgs.map((message, index) => {
               const isOwn = message.senderId === currentUserId
-              const showAvatar = index === 0 || msgs[index - 1].senderId !== message.senderId
+              const prev = index > 0 ? msgs[index - 1] : undefined
+              const showAvatar = index === 0 || prev?.senderId !== message.senderId
               const isOptimistic = (message as OptimisticMessage)._optimistic
               const status = (message as OptimisticMessage)._status
               const error = (message as OptimisticMessage)._error

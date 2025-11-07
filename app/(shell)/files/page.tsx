@@ -59,9 +59,9 @@ export default function FilesPage() {
   })
 
   const getFileIcon = (mimeType: string) => {
-    if (mimeType.startsWith('image/')) return Image
+    if (mimeType.startsWith('image/')) return ImageIcon
     if (mimeType.includes('pdf')) return FileText
-    return File
+    return FileIcon
   }
 
   const handleUploadClick = () => fileInputRef.current?.click()
@@ -292,7 +292,7 @@ export default function FilesPage() {
       {viewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {files.map((file) => {
-            const FileIcon = getFileIcon(file.mimeType)
+            const Icon = getFileIcon(file.mimeType)
             const isSelected = selectedFiles.has(file.id)
             return (
               <Card
@@ -311,7 +311,7 @@ export default function FilesPage() {
                         className="h-4 w-4"
                       />
                       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-                        <FileIcon className="h-6 w-6 text-muted-foreground" />
+                        <Icon className="h-6 w-6 text-muted-foreground" />
                       </div>
                     </div>
                     <DropdownMenu>
@@ -368,7 +368,7 @@ export default function FilesPage() {
             <div className="relative" style={{ height: listVirtualizer.getTotalSize() }}>
               {listVirtualizer.getVirtualItems().map((vr) => {
                 const file = files[vr.index]
-                const FileIcon = getFileIcon(file.mimeType)
+                const Icon = getFileIcon(file.mimeType)
                 const isSelected = selectedFiles.has(file.id)
                 return (
                   <div
@@ -385,7 +385,7 @@ export default function FilesPage() {
                           className="h-4 w-4"
                         />
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                          <FileIcon className="h-5 w-5 text-muted-foreground" />
+                          <Icon className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div className="flex-1">
                           <h3 className="font-medium">{file.name}</h3>

@@ -68,13 +68,17 @@ export function PreferencesMatrix() {
   const [hasChanges, setHasChanges] = useState(false)
 
   const toggleChannel = (eventType: string, channel: 'inApp' | 'email' | 'webPush') => {
-    setPreferences((prev) => ({
-      ...prev,
-      [eventType]: {
-        ...prev[eventType],
-        [channel]: !prev[eventType][channel],
-      },
-    }))
+    setPreferences((prev) => {
+      const current = prev[eventType] ?? { inApp: false, email: false, webPush: false }
+      const next: NotificationPreferences = {
+        ...prev,
+        [eventType]: {
+          ...current,
+          [channel]: !current[channel],
+        },
+      }
+      return next
+    })
     setHasChanges(true)
   }
 

@@ -44,6 +44,12 @@ export async function POST(
     }
 
     const userId = accessToken.split('_')[1]
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
+        { status: 401 }
+      )
+    }
     const { id, content, deliveryPriority = 'normal' } = await request.json()
 
     const newMessage = db.addMessage({

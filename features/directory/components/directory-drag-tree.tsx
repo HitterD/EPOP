@@ -243,10 +243,10 @@ function UserItem({ user, isDragging }: UserItemProps) {
       draggable
     >
       <Avatar
-        src={user.avatar}
+        {...(user.avatar ? { src: user.avatar } : {})}
         alt={user.name}
         size="xs"
-        fallback={user.name[0]}
+        fallback={user.name?.[0] ?? 'U'}
       />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{user.name}</p>

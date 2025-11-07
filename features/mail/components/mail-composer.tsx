@@ -47,14 +47,15 @@ export function MailComposer({ onClose, onSend, replyTo }: MailComposerProps) {
 
     setSending(true)
     try {
-      await onSend({
+      const payload = {
         to,
-        cc: cc.length > 0 ? cc : undefined,
-        bcc: bcc.length > 0 ? bcc : undefined,
         subject,
         body,
-        attachments: attachments.length > 0 ? attachments : undefined,
-      })
+        ...(cc.length > 0 ? { cc } : {}),
+        ...(bcc.length > 0 ? { bcc } : {}),
+        ...(attachments.length > 0 ? { attachments } : {}),
+      }
+      await onSend(payload)
       onClose()
     } catch (error) {
       console.error('Failed to send email:', error)

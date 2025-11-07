@@ -35,7 +35,8 @@ export function VirtualMessageStream({ messages, chatId, onOpenThread }: Virtual
 
   const Row = ({ index, style }: ListChildComponentProps) => {
     const m = messages[index]
-    const isOwn = m?.senderId === me?.id
+    if (!m) return null
+    const isOwn = m.senderId === me?.id
     return (
       <div style={style} data-testid="message-bubble">
         <MessageBubbleEnhanced

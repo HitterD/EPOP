@@ -50,7 +50,7 @@ export function useResilientSocket(userId?: string, token?: string) {
 
     const onConnect = () => {
       attemptsRef.current = 0
-      set({ status: 'connected', attempts: 0, lastError: undefined })
+      set({ status: 'connected', attempts: 0 })
     }
 
     const onDisconnect = (reason: string) => {

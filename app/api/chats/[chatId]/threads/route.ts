@@ -17,6 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: { chatId:
   const accessToken = cookies().get('accessToken')?.value
   if (!accessToken) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }, { status: 401 })
   const userId = accessToken.split('_')[1]
+  if (!userId) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 })
   const { parentId, content } = await request.json()
   if (!parentId || !content) return NextResponse.json({ success: false, error: { code: 'BAD_REQUEST', message: 'Missing parentId or content' } }, { status: 400 })
   const msg = db.addThreadMessage(parentId, {

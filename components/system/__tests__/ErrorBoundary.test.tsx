@@ -2,7 +2,7 @@ import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ErrorBoundary } from '../ErrorBoundary'
 
-function Thrower() {
+function Thrower(): JSX.Element {
   throw new Error('boom')
 }
 

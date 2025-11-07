@@ -85,7 +85,8 @@ export function BoardView({
 
   // Sort tasks by order within each bucket
   Object.keys(tasksByBucket).forEach((bucketId) => {
-    tasksByBucket[bucketId].sort((a, b) => (a.order || 0) - (b.order || 0))
+    const arr = tasksByBucket[bucketId]
+    if (arr) arr.sort((a, b) => (a.order || 0) - (b.order || 0))
   })
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -235,8 +236,8 @@ export function BoardView({
               key={bucket.id}
               bucket={bucket}
               tasks={bucketTasks}
-              onAddTask={() => onAddTask?.(bucket.id)}
-              onEditTask={onEditTask}
+              {...(onAddTask ? { onAddTask: () => { onAddTask(bucket.id) } } : {})}
+              {...(onEditTask ? { onEditTask } : {})}
               isDragging={!!activeTask}
             />
           )

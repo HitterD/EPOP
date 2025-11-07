@@ -34,11 +34,15 @@ export function VirtualizedMessageList({
     getScrollElement: () => parentRef.current,
     estimateSize: () => 96, // Average message height
     overscan: 8, // Render 8 items above/below viewport for smooth scrolling
-    measureElement:
-      typeof window !== 'undefined' &&
-      navigator.userAgent.indexOf('Firefox') === -1
-        ? element => element?.getBoundingClientRect().height
-        : undefined,
+    ...(typeof window !== 'undefined' && navigator.userAgent.indexOf('Firefox') === -1
+      ? {
+          measureElement: (
+            element: Element,
+            _entry?: ResizeObserverEntry,
+            _instance?: import('@tanstack/react-virtual').Virtualizer<HTMLDivElement, Element>,
+          ) => (element as HTMLElement).getBoundingClientRect().height,
+        }
+      : {}),
   })
 
   const items = virtualizer.getVirtualItems()

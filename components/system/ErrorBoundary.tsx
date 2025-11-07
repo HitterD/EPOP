@@ -56,9 +56,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     
     if (this.state.retryCount < maxRetries) {
       this.setState({ 
-        hasError: false, 
-        error: undefined, 
-        errorInfo: undefined,
+        hasError: false,
         retryCount: this.state.retryCount + 1 
       })
     } else {
@@ -69,9 +67,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   handleDismiss = () => {
     this.setState({ 
-      hasError: false, 
-      error: undefined, 
-      errorInfo: undefined 
+      hasError: false
     })
   }
 

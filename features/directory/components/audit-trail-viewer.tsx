@@ -38,7 +38,7 @@ export function AuditTrailViewer({
     isRefetching,
   } = useAuditTrail({
     contextType,
-    contextId,
+    ...(contextId ? { contextId } : {}),
     filters,
     limit: pageSize,
   })

@@ -7,7 +7,10 @@ export function useNotifications(limit = 50) {
   return useInfiniteQuery({
     queryKey: ['notifications'],
     queryFn: async ({ pageParam }) => {
-      const query = buildCursorQuery({ cursor: pageParam, limit })
+      const query = buildCursorQuery({
+        ...(pageParam ? { cursor: pageParam } : {}),
+        ...(limit ? { limit } : {}),
+      })
       const res = await apiClient.get<CursorPaginatedResponse<Notification>>(
         `/notifications${query}`
       )
@@ -28,8 +31,15 @@ export function useMarkNotificationRead() {
       if (!res.success) throw new Error('Failed to mark as read')
       return true
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['notifications'] })
+    onSuccess: (_data, notificationId) => {
+      qc.setQueryData(['notifications'], (old: any) => {
+        if (!old || !Array.isArray(old.pages)) return old
+        const pages = old.pages.map((p: any) => ({
+          ...p,
+          items: (p.items || []).map((n: any) => (n.id === notificationId ? { ...n, isRead: true } : n)),
+        }))
+        return { ...old, pages }
+      })
     },
   })
 }
@@ -42,7 +52,14 @@ export function useMarkAllNotificationsAsRead() {
       if (!res.success) throw new Error('Failed to mark notifications as read')
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.setQueryData(['notifications'], (old: any) => {
+        if (!old || !Array.isArray(old.pages)) return old
+        const pages = old.pages.map((p: any) => ({
+          ...p,
+          items: (p.items || []).map((n: any) => ({ ...n, isRead: true })),
+        }))
+        return { ...old, pages }
+      })
       qc.invalidateQueries({ queryKey: ['unread-count'] })
     },
   })
@@ -151,7 +168,8 @@ function arrayBufferToBase64(buffer: ArrayBuffer | null): string {
   const bytes = new Uint8Array(buffer)
   let binary = ''
   for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i])
+    const val = bytes[i] ?? 0
+    binary += String.fromCharCode(val)
   }
   return btoa(binary)
 }

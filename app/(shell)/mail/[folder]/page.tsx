@@ -29,7 +29,7 @@ export default function MailFolderPage({ params }: { params: { folder: string } 
     if (!el) return
     const obs = new IntersectionObserver((entries) => {
       const first = entries[0]
-      if (first.isIntersecting && hasNextPage && !isFetchingNextPage) {
+      if (first && first.isIntersecting && hasNextPage && !isFetchingNextPage) {
         fetchNextPage()
       }
     })

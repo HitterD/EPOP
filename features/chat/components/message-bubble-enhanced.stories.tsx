@@ -20,11 +20,14 @@ const mockMessage = {
   chatId: 'chat-1',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+  timestamp: new Date().toISOString(),
+  type: 'text' as const,
+  isEdited: false,
+  isDeleted: false,
+  deliveryPriority: 'normal' as const,
   sender: {
     id: 'user-1',
     name: 'John Doe',
-    email: 'john@example.com',
-    avatar: null,
   },
   readBy: [],
   reactions: [],
@@ -36,7 +39,6 @@ export const Default: Story = {
     message: mockMessage,
     isOwn: false,
     showAvatar: true,
-    showSender: true,
     showTimestamp: true,
   },
 }
@@ -46,7 +48,6 @@ export const OwnMessage: Story = {
     message: mockMessage,
     isOwn: true,
     showAvatar: false,
-    showSender: false,
     showTimestamp: true,
   },
 }
@@ -56,8 +57,9 @@ export const WithReactions: Story = {
     message: {
       ...mockMessage,
       reactions: [
-        { emoji: '👍', users: ['user-2', 'user-3'], count: 2 },
-        { emoji: '❤️', users: ['user-4'], count: 1 },
+        { emoji: '👍', userId: 'user-2', createdAt: new Date().toISOString() },
+        { emoji: '👍', userId: 'user-3', createdAt: new Date().toISOString() },
+        { emoji: '❤️', userId: 'user-4', createdAt: new Date().toISOString() },
       ],
     },
     isOwn: false,
@@ -73,6 +75,7 @@ export const WithAttachment: Story = {
       attachments: [
         {
           id: 'file-1',
+          fileId: 'file-1',
           name: 'document.pdf',
           size: 1024000,
           mimeType: 'application/pdf',
@@ -101,10 +104,7 @@ export const WithReadReceipts: Story = {
   args: {
     message: {
       ...mockMessage,
-      readBy: [
-        { userId: 'user-2', readAt: new Date().toISOString() },
-        { userId: 'user-3', readAt: new Date().toISOString() },
-      ],
+      readBy: ['user-2', 'user-3'],
     },
     isOwn: true,
     showAvatar: false,

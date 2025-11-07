@@ -8,7 +8,10 @@ export function useFiles(limit = 50) {
   return useInfiniteQuery({
     queryKey: ['files'],
     queryFn: async ({ pageParam }) => {
-      const query = buildCursorQuery({ cursor: pageParam, limit })
+      const query = buildCursorQuery({
+        ...(pageParam ? { cursor: pageParam } : {}),
+        ...(limit ? { limit } : {}),
+      })
       const res = await apiClient.get<CursorPaginatedResponse<FileItem>>(`/files${query}`)
       if (!res.success || !res.data) throw new Error('Failed to load files')
       return res.data
@@ -105,8 +108,18 @@ export function useConfirmUpload() {
       if (!res.success || !res.data) throw new Error('Failed to confirm upload')
       return res.data
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['files'] })
+    onSuccess: (file) => {
+      qc.setQueryData(['files'], (old: any) => {
+        if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old
+        const first = old.pages[0]
+        return {
+          ...old,
+          pages: [
+            { ...first, items: [file, ...(first.items || [])] },
+            ...old.pages.slice(1),
+          ],
+        }
+      })
     },
   })
 }
@@ -137,16 +150,16 @@ export function usePresignedUploadFlow() {
         fileName: file.name,
         fileSize: file.size,
         mimeType: file.type,
-        contextType,
-        contextId,
+        ...(contextType ? { contextType } : {}),
+        ...(contextId ? { contextId } : {}),
       })
 
       // Step 2: Upload directly to MinIO
       await directUpload.mutateAsync({
         file,
         uploadUrl: presignedData.uploadUrl,
-        fields: presignedData.fields,
-        onProgress,
+        ...(presignedData.fields ? { fields: presignedData.fields } : {}),
+        ...(onProgress ? { onProgress } : {}),
       })
 
       // Step 3: Confirm upload with backend
@@ -168,8 +181,15 @@ export function useDeleteFile() {
       if (!res.success) throw new Error('Failed to delete file')
       return true
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['files'] })
+    onSuccess: (_ok, fileId) => {
+      qc.setQueryData(['files'], (old: any) => {
+        if (!old || !Array.isArray(old.pages)) return old
+        const pages = old.pages.map((p: any) => ({
+          ...p,
+          items: (p.items || []).filter((f: any) => f.id !== fileId),
+        }))
+        return { ...old, pages }
+      })
     },
   })
 }

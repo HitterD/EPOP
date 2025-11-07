@@ -15,12 +15,12 @@ export function useProjectTaskEvents(projectId: string, enabled = true) {
   const queryClient = useQueryClient()
 
   // Listen to task created events
-  useDomainEvents({
+  useDomainEvents<ProjectTaskEvent>({
     eventType: SOCKET_EVENTS.PROJECT_TASK_CREATED,
     enabled,
     onEvent: useCallback(
-      (event: any) => {
-        const taskEvent = event as ProjectTaskEvent
+      (event: ProjectTaskEvent) => {
+        const taskEvent = event
         if (taskEvent.projectId === projectId && taskEvent.patch) {
           const newTask = taskEvent.patch as Task
 
@@ -50,12 +50,12 @@ export function useProjectTaskEvents(projectId: string, enabled = true) {
   })
 
   // Listen to task updated events
-  useDomainEvents({
+  useDomainEvents<ProjectTaskEvent>({
     eventType: SOCKET_EVENTS.PROJECT_TASK_UPDATED,
     enabled,
     onEvent: useCallback(
-      (event: any) => {
-        const taskEvent = event as ProjectTaskEvent
+      (event: ProjectTaskEvent) => {
+        const taskEvent = event
         if (taskEvent.projectId === projectId && taskEvent.patch) {
           // Update task in infinite query cache
           queryClient.setQueryData(['project-tasks', projectId], (oldData: any) => {
@@ -91,12 +91,12 @@ export function useProjectTaskEvents(projectId: string, enabled = true) {
   })
 
   // Listen to task moved events (bucket changes, reordering)
-  useDomainEvents({
+  useDomainEvents<ProjectTaskEvent>({
     eventType: SOCKET_EVENTS.PROJECT_TASK_MOVED,
     enabled,
     onEvent: useCallback(
-      (event: any) => {
-        const taskEvent = event as ProjectTaskEvent
+      (event: ProjectTaskEvent) => {
+        const taskEvent = event
         if (taskEvent.projectId === projectId) {
           // For task moves, we need to refresh both tasks and buckets
           queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
@@ -109,12 +109,12 @@ export function useProjectTaskEvents(projectId: string, enabled = true) {
   })
 
   // Listen to task deleted events
-  useDomainEvents({
+  useDomainEvents<ProjectTaskEvent>({
     eventType: SOCKET_EVENTS.PROJECT_TASK_DELETED,
     enabled,
     onEvent: useCallback(
-      (event: any) => {
-        const taskEvent = event as ProjectTaskEvent
+      (event: ProjectTaskEvent) => {
+        const taskEvent = event
         if (taskEvent.projectId === projectId) {
           // Remove task from infinite query cache
           queryClient.setQueryData(['project-tasks', projectId], (oldData: any) => {

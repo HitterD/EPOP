@@ -8,6 +8,7 @@ import { Message } from '../entities/message.entity'
 import { Chat } from '../entities/chat.entity'
 import { SuccessResponse } from '../common/dto/success.dto'
 import { CursorMessagesResponse } from '../common/dto/cursor-response.dto'
+import { CreateChatDto, EditMessageDto, ReactionDto, SendMessageDto } from './dto/requests.dto'
 
 @UseGuards(AuthGuard('jwt'))
 @ApiTags('chats')
@@ -24,7 +25,7 @@ export class ChatController {
 
   @Post()
   @ApiOkResponse({ type: Chat })
-  async create(@Req() req: any, @Body() dto: { isGroup: boolean; title?: string | null; participantIds: string[] }) {
+  async create(@Req() req: any, @Body() dto: CreateChatDto) {
     return this.chat.createChat(req.user.userId, dto)
   }
 
@@ -56,7 +57,7 @@ export class ChatController {
   async send(
     @Req() req: any,
     @Param('chatId') chatId: string,
-    @Body() body: { content: any; delivery?: 'normal'|'important'|'urgent'; rootMessageId?: string | null },
+    @Body() body: SendMessageDto,
   ) {
     return this.chat.sendMessage(req.user.userId, { chatId, content: body.content, delivery: body.delivery, rootMessageId: body.rootMessageId ?? null })
   }
@@ -73,14 +74,14 @@ export class ChatController {
 
   @Post(':chatId/reactions')
   @ApiOkResponse({ type: SuccessResponse })
-  async addReaction(@Req() req: any, @Param('chatId') chatId: string, @Body() body: { messageId: string; emoji: string }) {
+  async addReaction(@Req() req: any, @Param('chatId') chatId: string, @Body() body: ReactionDto) {
     // chatId trusted for auth membership in service via message
     return this.chat.addReaction(req.user.userId, body)
   }
 
   @Delete(':chatId/reactions')
   @ApiOkResponse({ type: SuccessResponse })
-  async removeReaction(@Req() req: any, @Param('chatId') chatId: string, @Body() body: { messageId: string; emoji: string }) {
+  async removeReaction(@Req() req: any, @Param('chatId') chatId: string, @Body() body: ReactionDto) {
     return this.chat.removeReaction(req.user.userId, body)
   }
 
@@ -96,9 +97,9 @@ export class ChatController {
     @Req() req: any,
     @Param('chatId') chatId: string,
     @Param('messageId') messageId: string,
-    @Body('content') content: any,
+    @Body() dto: EditMessageDto,
   ) {
-    return this.chat.editMessage(req.user.userId, messageId, { content })
+    return this.chat.editMessage(req.user.userId, messageId, { content: dto.content })
   }
 
   @Delete(':chatId/messages/:messageId')

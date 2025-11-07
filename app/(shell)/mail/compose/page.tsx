@@ -86,11 +86,11 @@ export default function MailComposePage() {
   const onSubmit = (values: FormValues) => {
     const payload = {
       to: splitList(values.to),
-      cc: values.cc ? splitList(values.cc) : undefined,
-      bcc: values.bcc ? splitList(values.bcc) : undefined,
+      ...(values.cc ? { cc: splitList(values.cc) } : {}),
+      ...(values.bcc ? { bcc: splitList(values.bcc) } : {}),
       subject: values.subject,
       body: values.body,
-      attachments: attachments.map((a) => a.url),
+      ...(attachments.length ? { attachments: attachments.map((a) => a.url) } : {}),
     }
     sendMail.mutate(payload, {
       onSuccess: () => {

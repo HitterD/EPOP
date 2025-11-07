@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Download, ArrowUpDown, Search } from 'lucide-react'
+import { Download, ArrowUpDown, Search, AlertCircle } from 'lucide-react'
 import { Task, Bucket } from '@/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'

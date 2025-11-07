@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db/mock-data'
+
+function sanitizeHtml(input?: string | null): string {
+  if (!input) return ''
+  let html = String(input)
+  html = html.replace(/<\/(?:script|style|iframe|object|embed)>/gi, '')
+  html = html.replace(/<(?:script|style|iframe|object|embed)[^>]*>[\s\S]*?<\/(?:script|style|iframe|object|embed)>/gi, '')
+  html = html.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  html = html.replace(/(href|src)\s*=\s*(['"])\s*javascript:[^'\"]*\2/gi, '$1="#"')
+  html = html.replace(/(href|src)\s*=\s*javascript:[^\s>]+/gi, '$1="#"')
+  return html
+}
 import { MailMessage } from '@/types'
 
 export async function GET(request: NextRequest) {
@@ -25,9 +36,10 @@ export async function POST(request: NextRequest) {
     cc,
     bcc,
     subject,
-    body,
+    body: typeof body === 'string' ? sanitizeHtml(body) : body,
     attachments,
     folder: 'sent',
+    date: now,
     isRead: true,
     isStarred: false,
     priority: priority || 'normal',

@@ -42,6 +42,7 @@ export function BulkImportUploadStep({
 
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
+      if (!file) return
       setSelectedFile(file)
     }
   }, [])

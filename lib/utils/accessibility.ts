@@ -202,10 +202,11 @@ export function getContrastRatio(foreground: string, background: string): number
   const getLuminance = (color: string): number => {
     // Simplified luminance calculation
     const rgb = color.match(/\d+/g)?.map(Number) || [0, 0, 0]
-    const [r, g, b] = rgb.map((val) => {
+    const mapped = rgb.map((val) => {
       const sRGB = val / 255
       return sRGB <= 0.03928 ? sRGB / 12.92 : Math.pow((sRGB + 0.055) / 1.055, 2.4)
     })
+    const [r = 0, g = 0, b = 0] = mapped as number[]
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
   }
 

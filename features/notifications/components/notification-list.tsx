@@ -63,7 +63,7 @@ export function NotificationList({
           <NotificationItem
             key={notification.id}
             notification={notification}
-            onClose={onClose}
+            {...(onClose ? { onClose } : {})}
           />
         ))}
       </div>
@@ -77,9 +77,10 @@ export function NotificationList({
   )
 }
 
-function Bell({ size }: { size: number }) {
+function Bell({ size, className }: { size: number; className?: string }) {
   return (
     <svg
+      className={className}
       width={size}
       height={size}
       viewBox="0 0 24 24"

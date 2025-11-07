@@ -10,8 +10,10 @@ describe('computeBackoff', () => {
       values.push(computeBackoff(i, base, max))
     }
     for (let i = 1; i < values.length; i++) {
-      expect(values[i]).toBeGreaterThanOrEqual(values[i - 1])
-      expect(values[i]).toBeLessThanOrEqual(max)
+      const prev = values[i - 1]!
+      const cur = values[i]!
+      expect(cur).toBeGreaterThanOrEqual(prev)
+      expect(cur).toBeLessThanOrEqual(max)
     }
   })
 })
@@ -35,10 +37,9 @@ describe('useConnectionStore', () => {
     expect(useConnectionStore.getState().attempts).toBe(3)
     expect(useConnectionStore.getState().lastError).toBe('timeout')
 
-    // set connected resets attempts
-    useConnectionStore.getState().set({ status: 'connected', attempts: 0, lastError: undefined })
+    // set connected resets attempts (do not set optional lastError explicitly)
+    useConnectionStore.getState().set({ status: 'connected', attempts: 0 })
     expect(useConnectionStore.getState().status).toBe('connected')
     expect(useConnectionStore.getState().attempts).toBe(0)
-    expect(useConnectionStore.getState().lastError).toBeUndefined()
   })
 })

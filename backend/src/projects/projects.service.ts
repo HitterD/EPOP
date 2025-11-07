@@ -110,7 +110,26 @@ export class ProjectsService {
   async listBuckets(userId: string, projectId: string) {
     const member = await this.members.findOne({ where: { projectId, userId } })
     if (!member) throw new ForbiddenException()
-    const buckets = await this.buckets.find({ where: { project: { id: projectId } as any }, order: { position: 'ASC' }, relations: { tasks: true, project: true } })
+    const qb = this.buckets
+      .createQueryBuilder('b')
+      .leftJoin('b.project', 'p')
+      .leftJoin('b.tasks', 't')
+      .select([
+        'b.id',
+        'b.name',
+        'b.position',
+        't.id',
+        't.title',
+        't.position',
+        't.startAt',
+        't.dueAt',
+        't.progress',
+      ])
+      .where('p.id = :projectId', { projectId })
+      .orderBy('b.position', 'ASC')
+      .addOrderBy('t.position', 'ASC')
+
+    const buckets = await qb.getMany()
     return buckets
   }
 
@@ -121,11 +140,22 @@ export class ProjectsService {
     if (taskIds && taskIds.length) {
       const tasks = await this.tasks.find({ where: { id: In(taskIds), project: { id: projectId } as any, bucket: { id: bucketId } as any } })
       const found = new Set(tasks.map((t) => String(t.id)))
-      // Apply sequential positions starting from 0
+      const pairs: Array<[string, number]> = []
       let pos = 0
       for (const id of taskIds) {
-        if (!found.has(String(id))) continue
-        await this.tasks.update({ id: String(id) }, { position: pos++ } as any)
+        const sid = String(id)
+        if (!found.has(sid)) continue
+        pairs.push([sid, pos++])
+      }
+      if (pairs.length) {
+        const valuesSql = pairs.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`).join(',')
+        const params = pairs.flat()
+        await this.tasks.query(
+          `UPDATE tasks AS t SET position = v.pos
+           FROM (VALUES ${valuesSql}) AS v(id, pos)
+           WHERE t.id = v.id`,
+          params,
+        )
       }
     }
     await this.outbox.append({ name: 'project.task.updated', aggregateType: 'project', aggregateId: projectId, userId, payload: { projectId, bucketId, action: 'reordered' } })
@@ -214,8 +244,12 @@ export class ProjectsService {
         visited.add(cur.id)
         // Find successors within same project
         const edges = await this.deps.find({ where: { predecessor: { id: cur.id } as any, successor: { project: { id: projectId } as any } as any }, relations: { successor: true } })
+        if (!edges.length) continue
+        const succIds = edges.map((e) => String(e.successor.id))
+        const successors = await this.tasks.find({ where: { id: In(succIds) } })
+        const succMap = new Map(successors.map((s) => [String(s.id), s]))
         for (const e of edges) {
-          const succ = await this.tasks.findOne({ where: { id: String(e.successor.id) } })
+          const succ = succMap.get(String(e.successor.id))
           if (!succ) continue
           const lagMs = Math.max(0, Number(e.lagDays || 0)) * 24 * 60 * 60 * 1000
           const predDue = cur.due

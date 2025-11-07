@@ -3,7 +3,7 @@
  * Collects and reports Core Web Vitals to backend
  */
 
-import { onCLS, onFCP, onFID, onINP, onLCP, onTTFB, Metric } from 'web-vitals'
+import { onCLS, onFCP, onINP, onLCP, onTTFB, Metric } from 'web-vitals'
 
 interface VitalsPayload {
   name: string
@@ -78,11 +78,10 @@ function getRating(name: string, value: number): 'good' | 'needs-improvement' | 
   const thresholds: Record<string, [number, number]> = {
     // [good, needs-improvement] thresholds
     CLS: [0.1, 0.25],      // Cumulative Layout Shift
-    FID: [100, 300],       // First Input Delay (ms)
-    INP: [200, 500],       // Interaction to Next Paint (ms)
-    LCP: [2500, 4000],     // Largest Contentful Paint (ms)
-    FCP: [1800, 3000],     // First Contentful Paint (ms)
-    TTFB: [800, 1800],     // Time to First Byte (ms)
+    INP: [200, 500],       // Interaction to Next Paint (replaces FID)
+    LCP: [2500, 4000],     // Largest Contentful Paint
+    FCP: [1800, 3000],     // First Contentful Paint
+    TTFB: [800, 1800],     // Time to First Byte
   }
 
   const [goodThreshold, poorThreshold] = thresholds[name] || [0, Infinity]
@@ -102,7 +101,6 @@ export function reportWebVitals() {
 
   // Core Web Vitals
   onCLS(sendToAnalytics)  // Cumulative Layout Shift
-  onFID(sendToAnalytics)  // First Input Delay (deprecated, use INP)
   onINP(sendToAnalytics)  // Interaction to Next Paint (new)
   onLCP(sendToAnalytics)  // Largest Contentful Paint
 
@@ -127,11 +125,12 @@ export function measurePerformance(name: string, startMark: string, endMark: str
   if (typeof window !== 'undefined' && window.performance) {
     try {
       performance.measure(name, startMark, endMark)
-      const measure = performance.getEntriesByName(name)[0]
+      const measure = performance.getEntriesByName(name)[0] as PerformanceMeasure | undefined
+      if (!measure) return
       
       // Report custom metric
       const metric: Partial<Metric> = {
-        name,
+        name: name as 'CLS' | 'FCP' | 'INP' | 'LCP' | 'TTFB', // Cast to the expected type
         value: measure.duration,
         delta: measure.duration,
         id: `${name}-${Date.now()}`,

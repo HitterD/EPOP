@@ -80,21 +80,45 @@ export class DirectoryService {
       const auditRepo = manager.getRepository(DirectoryAudit)
       // Map codes to entities
       const byCode = new Map<string, OrgUnit>()
-      // First pass: ensure all units exist
-      for (const r of rows) {
-        if (!r.code) continue
-        let org = await orgRepo.findOne({ where: { code: r.code } })
-        if (!org) {
-          org = orgRepo.create({ code: r.code, name: r.name || r.code })
-          org = await orgRepo.save(org)
-          await auditRepo.save(auditRepo.create({ action: 'unit_created', actorId: '0', targetId: org.id, fromParentId: null, toParentId: null, details: null }))
-          imported++
-        } else if (r.name && org.name !== r.name) {
-          org.name = r.name
-          await orgRepo.save(org)
-          await auditRepo.save(auditRepo.create({ action: 'unit_updated', actorId: '0', targetId: org.id, fromParentId: null, toParentId: null, details: { name: r.name } }))
+      // First pass (batched): ensure all units exist
+      const codes = Array.from(new Set(rows.map((r) => r.code).filter(Boolean))) as string[]
+      if (codes.length) {
+        const existing = await orgRepo.find({ where: { code: codes as any } as any })
+        for (const e of existing) byCode.set(String(e.code), e)
+
+        const toCreate: OrgUnit[] = []
+        for (const r of rows) {
+          if (!r.code) continue
+          if (!byCode.has(r.code)) {
+            const entity = orgRepo.create({ code: r.code, name: r.name || r.code })
+            toCreate.push(entity)
+          }
         }
-        byCode.set(r.code, org)
+        if (toCreate.length) {
+          const created = await orgRepo.save(toCreate)
+          imported += created.length
+          await auditRepo.save(
+            created.map((org) => auditRepo.create({ action: 'unit_created', actorId: '0', targetId: org.id, fromParentId: null, toParentId: null, details: null }))
+          )
+          for (const c of created) byCode.set(String(c.code), c)
+        }
+
+        const toUpdate: OrgUnit[] = []
+        for (const r of rows) {
+          if (!r.code || !r.name) continue
+          const org = byCode.get(r.code)
+          if (org && org.name !== r.name) {
+            org.name = r.name
+            toUpdate.push(org)
+          }
+        }
+        if (toUpdate.length) {
+          const updated = await orgRepo.save(toUpdate)
+          await auditRepo.save(
+            updated.map((org) => auditRepo.create({ action: 'unit_updated', actorId: '0', targetId: org.id, fromParentId: null, toParentId: null, details: { name: org.name } }))
+          )
+          for (const u of updated) byCode.set(String(u.code), u)
+        }
       }
       // Second pass: set parents
       for (const r of rows) {

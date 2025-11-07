@@ -14,12 +14,12 @@ export function useChatMessageEvents(chatId: string, enabled = true) {
   const queryClient = useQueryClient()
 
   // Listen to message created events
-  useDomainEvents({
+  useDomainEvents<ChatMessageEvent>({
     eventType: SOCKET_EVENTS.CHAT_MESSAGE_CREATED,
     enabled,
     onEvent: useCallback(
-      (event: any) => {
-        const messageEvent = event as ChatMessageEvent
+      (event: ChatMessageEvent) => {
+        const messageEvent = event
         if (messageEvent.chatId === chatId) {
           // Add new message to infinite query cache
           queryClient.setQueryData(['chat-messages', chatId], (oldData: any) => {
@@ -54,12 +54,12 @@ export function useChatMessageEvents(chatId: string, enabled = true) {
   })
 
   // Listen to message updated events
-  useDomainEvents({
+  useDomainEvents<ChatMessageEvent>({
     eventType: SOCKET_EVENTS.CHAT_MESSAGE_UPDATED,
     enabled,
     onEvent: useCallback(
-      (event: any) => {
-        const messageEvent = event as ChatMessageEvent
+      (event: ChatMessageEvent) => {
+        const messageEvent = event
         if (messageEvent.chatId === chatId) {
           queryClient.setQueryData(['chat-messages', chatId], (oldData: any) => {
             if (!oldData) return oldData
@@ -81,12 +81,12 @@ export function useChatMessageEvents(chatId: string, enabled = true) {
   })
 
   // Listen to message deleted events
-  useDomainEvents({
+  useDomainEvents<ChatMessageEvent>({
     eventType: SOCKET_EVENTS.CHAT_MESSAGE_DELETED,
     enabled,
     onEvent: useCallback(
-      (event: any) => {
-        const messageEvent = event as ChatMessageEvent
+      (event: ChatMessageEvent) => {
+        const messageEvent = event
         if (messageEvent.chatId === chatId) {
           queryClient.setQueryData(['chat-messages', chatId], (oldData: any) => {
             if (!oldData) return oldData
@@ -106,12 +106,12 @@ export function useChatMessageEvents(chatId: string, enabled = true) {
   })
 
   // Listen to reaction events
-  useDomainEvents({
+  useDomainEvents<ChatMessageEvent>({
     eventType: SOCKET_EVENTS.CHAT_REACTION_ADDED,
     enabled,
     onEvent: useCallback(
-      (event: any) => {
-        const messageEvent = event as ChatMessageEvent
+      (event: ChatMessageEvent) => {
+        const messageEvent = event
         if (messageEvent.chatId === chatId) {
           queryClient.setQueryData(['chat-messages', chatId], (oldData: any) => {
             if (!oldData) return oldData

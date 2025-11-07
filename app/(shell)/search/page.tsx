@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Search, MessageSquare, FolderKanban, Users, File, ChevronLeft, ChevronRight, Loader2, Layout } from 'lucide-react'
+import { Search, MessageSquare, FolderKanban, Users, File, Loader2, Layout } from 'lucide-react'
 import {
   useSearch as useSearchAll,
   useSearchMessages,
@@ -49,7 +49,7 @@ export default function SearchPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'messages' | 'projects' | 'users' | 'files'>('all')
   const [hasAttachments, setHasAttachments] = useState<boolean | undefined>(undefined)
   const [sender, setSender] = useState('')
-  const [cursor, setCursor] = useState<string | null>(null)
+  // cursor-based pagination not supported by current SearchResult type
   const [showPreview, setShowPreview] = useState(true)
   const [selectedResult, setSelectedResult] = useState<any>(null)
 
@@ -70,11 +70,10 @@ export default function SearchPage() {
 
   const filters = useMemo(
     () => ({
-      sender: sender || undefined,
-      hasAttachments,
-      cursor: cursor || undefined,
+      ...(sender ? { sender } : {}),
+      ...(hasAttachments !== undefined ? { hasAttachments } : {}),
     }),
-    [sender, hasAttachments, cursor]
+    [sender, hasAttachments]
   )
 
   const all = useSearchAll({ query: debouncedQuery, tab: 'all', filters })
@@ -222,28 +221,7 @@ export default function SearchPage() {
               </Card>
             ))}
             
-            {/* Pagination for Messages */}
-            {messages.data?.nextCursor && (
-              <div className="flex justify-center gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCursor(null)}
-                  disabled={!cursor}
-                >
-                  <ChevronLeft className="mr-1 h-4 w-4" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCursor(messages.data?.nextCursor || null)}
-                >
-                  Next
-                  <ChevronRight className="ml-1 h-4 w-4" />
-                </Button>
-              </div>
-            )}
+            {/* Pagination removed: not supported by current SearchResult type */}
           </div>
         </TabsContent>
 

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { NotificationPreferences } from '@/types'
 import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/lib/api/hooks/use-notifications'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -15,16 +16,39 @@ export function NotificationSettingsPage() {
   const { data: preferences, isLoading } = useNotificationPreferences()
   const { mutate: updatePreferences } = useUpdateNotificationPreferences()
 
-  const [localPrefs, setLocalPrefs] = useState(preferences)
+  const defaultPrefs: NotificationPreferences = {
+    enabled: true,
+    webPushEnabled: false,
+    soundEnabled: true,
+    desktopEnabled: true,
+    doNotDisturb: { enabled: false, startTime: '22:00', endTime: '08:00' },
+    channels: [],
+  }
+  const [localPrefs, setLocalPrefs] = useState<NotificationPreferences>(preferences ?? defaultPrefs)
 
-  const handleToggle = (key: string, value: boolean) => {
-    const updated = { ...localPrefs, [key]: value }
+  useEffect(() => {
+    if (preferences) {
+      const dnd = preferences.doNotDisturb ?? { enabled: false, startTime: '22:00', endTime: '08:00' }
+      setLocalPrefs({
+        enabled: preferences.enabled,
+        webPushEnabled: preferences.webPushEnabled,
+        soundEnabled: preferences.soundEnabled,
+        desktopEnabled: preferences.desktopEnabled,
+        doNotDisturb: dnd,
+        channels: preferences.channels ?? [],
+        ...(preferences.userId ? { userId: preferences.userId } : {}),
+      })
+    }
+  }, [preferences])
+
+  const handleToggle = (key: keyof NotificationPreferences, value: boolean) => {
+    const updated: NotificationPreferences = { ...localPrefs, [key]: value } as NotificationPreferences
     setLocalPrefs(updated)
     
     // Auto-save with optimistic update
     updatePreferences(updated, {
       onError: () => {
-        setLocalPrefs(preferences) // Rollback on error
+        setLocalPrefs(preferences ?? defaultPrefs) // Rollback on error
         toast.error('Failed to update settings')
       },
       onSuccess: () => {
@@ -145,7 +169,11 @@ export function NotificationSettingsPage() {
               onCheckedChange={(checked) =>
                 setLocalPrefs({
                   ...localPrefs,
-                  doNotDisturb: { ...localPrefs?.doNotDisturb, enabled: checked },
+                  doNotDisturb: {
+                    enabled: checked,
+                    startTime: localPrefs?.doNotDisturb?.startTime ?? '22:00',
+                    endTime: localPrefs?.doNotDisturb?.endTime ?? '08:00',
+                  },
                 })
               }
             />
@@ -162,7 +190,11 @@ export function NotificationSettingsPage() {
                     onChange={(e) =>
                       setLocalPrefs({
                         ...localPrefs,
-                        doNotDisturb: { ...localPrefs?.doNotDisturb, startTime: e.target.value },
+                        doNotDisturb: {
+                          enabled: localPrefs?.doNotDisturb?.enabled ?? true,
+                          startTime: e.target.value,
+                          endTime: localPrefs?.doNotDisturb?.endTime ?? '08:00',
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border rounded-lg"
@@ -176,7 +208,11 @@ export function NotificationSettingsPage() {
                     onChange={(e) =>
                       setLocalPrefs({
                         ...localPrefs,
-                        doNotDisturb: { ...localPrefs?.doNotDisturb, endTime: e.target.value },
+                        doNotDisturb: {
+                          enabled: localPrefs?.doNotDisturb?.enabled ?? true,
+                          startTime: localPrefs?.doNotDisturb?.startTime ?? '22:00',
+                          endTime: e.target.value,
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border rounded-lg"

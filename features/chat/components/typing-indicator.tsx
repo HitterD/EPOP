@@ -22,7 +22,7 @@ export function TypingIndicator({ chatId, currentUserId }: TypingIndicatorProps)
             key={user.userId}
             alt={user.userName}
             size="xs"
-            fallback={user.userName[0]}
+            fallback={user.userName?.[0] ?? 'U'}
           />
         ))}
       </div>
@@ -30,11 +30,13 @@ export function TypingIndicator({ chatId, currentUserId }: TypingIndicatorProps)
       {/* Typing text */}
       <div className="flex items-center gap-1">
         <span>
-          {typingUsers.length === 1
-            ? `${typingUsers[0].userName} is typing`
-            : typingUsers.length === 2
-            ? `${typingUsers[0].userName} and ${typingUsers[1].userName} are typing`
-            : `${typingUsers[0].userName} and ${typingUsers.length - 1} others are typing`}
+          {(() => {
+            const first = typingUsers[0]
+            const second = typingUsers[1]
+            if (typingUsers.length === 1) return `${first?.userName ?? 'Someone'} is typing`
+            if (typingUsers.length === 2) return `${first?.userName ?? 'Someone'} and ${second?.userName ?? 'someone'} are typing`
+            return `${first?.userName ?? 'Someone'} and ${typingUsers.length - 1} others are typing`
+          })()}
         </span>
 
         {/* Animated dots */}

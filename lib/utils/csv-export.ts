@@ -20,8 +20,9 @@ export function convertToCSV<T extends Record<string, any>>(
 
   const { delimiter = ',', includeHeaders = true } = options
 
-  // Get headers from first object
-  const headers = Object.keys(data[0])
+  // Get headers from first object (safe under strict index access)
+  const first = data[0]!
+  const headers = Object.keys(first)
 
   // Escape CSV values
   const escapeValue = (value: any): string => {
@@ -42,7 +43,7 @@ export function convertToCSV<T extends Record<string, any>>(
   }
 
   data.forEach((row) => {
-    const values = headers.map((header) => escapeValue(row[header]))
+    const values = headers.map((header) => escapeValue(row[header as keyof typeof row]))
     rows.push(values.join(delimiter))
   })
 

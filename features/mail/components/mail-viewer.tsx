@@ -13,7 +13,7 @@ import {
   Paperclip
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -63,13 +63,13 @@ export function MailViewer({
           size="sm"
           variant="ghost"
           onClick={onToggleStar}
-          className={cn(mail.starred && 'text-yellow-500')}
+          className={cn(mail.isStarred && 'text-yellow-500')}
         >
           <Star 
             size={16} 
-            className={cn('mr-2', mail.starred && 'fill-yellow-500')} 
+            className={cn('mr-2', mail.isStarred && 'fill-yellow-500')} 
           />
-          {mail.starred ? 'Starred' : 'Star'}
+          {mail.isStarred ? 'Starred' : 'Star'}
         </Button>
 
         <DropdownMenu>
@@ -106,11 +106,13 @@ export function MailViewer({
         {/* From */}
         <div className="flex items-start gap-3 mb-6">
           <Avatar>
-            <AvatarImage src={mail.from.avatarUrl} />
+            {/* MailMessage.from is a string; show fallback initials */}
             <AvatarFallback>
-              {mail.from.name
-                .split(' ')
+              {String(mail.from)
+                .split(/[\s@]/)
+                .filter(Boolean)
                 .map((n) => n[0])
+                .slice(0, 2)
                 .join('')
                 .toUpperCase()}
             </AvatarFallback>
@@ -118,13 +120,12 @@ export function MailViewer({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-semibold">{mail.from.name}</span>
-              <span className="text-sm text-gray-500">{mail.from.email}</span>
+              <span className="font-semibold break-all">{mail.from}</span>
             </div>
             
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                to {mail.to.map((t) => t.email).join(', ')}
+              <span className="text-sm text-gray-600 dark:text-gray-400 break-all">
+                to {mail.to.join(', ')}
               </span>
               
               {(mail.cc && mail.cc.length > 0) || (mail.bcc && mail.bcc.length > 0) ? (
@@ -142,10 +143,10 @@ export function MailViewer({
             {showDetails && (
               <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 space-y-1">
                 {mail.cc && mail.cc.length > 0 && (
-                  <div>cc: {mail.cc.map((c) => c.email).join(', ')}</div>
+                  <div>cc: {mail.cc.join(', ')}</div>
                 )}
                 {mail.bcc && mail.bcc.length > 0 && (
-                  <div>bcc: {mail.bcc.map((b) => b.email).join(', ')}</div>
+                  <div>bcc: {mail.bcc.join(', ')}</div>
                 )}
                 <div>date: {formatDate(mail.createdAt, 'PPPppp')}</div>
               </div>

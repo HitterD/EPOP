@@ -9,6 +9,7 @@ import {
   Notification,
   Bucket,
   MailMessage,
+  FileStatus, // Import FileStatus type
 } from '@/types'
 
 // Mock Users
@@ -17,11 +18,11 @@ export const mockUsers: User[] = [
     id: 'user-1',
     email: 'admin@epop.com',
     name: 'Admin User',
-    avatar: undefined,
     title: 'System Administrator',
     department: 'IT',
     extension: '1001',
-    role: 'admin',
+    role: 'admin', 
+    permissions: [], 
     presence: 'available',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -30,11 +31,11 @@ export const mockUsers: User[] = [
     id: 'user-2',
     email: 'john.doe@epop.com',
     name: 'John Doe',
-    avatar: undefined,
     title: 'Senior Developer',
     department: 'Engineering',
     extension: '1002',
-    role: 'user',
+    role: 'member', 
+    permissions: [], 
     presence: 'busy',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -43,11 +44,11 @@ export const mockUsers: User[] = [
     id: 'user-3',
     email: 'jane.smith@epop.com',
     name: 'Jane Smith',
-    avatar: undefined,
     title: 'Product Manager',
     department: 'Product',
     extension: '1003',
-    role: 'user',
+    role: 'member', 
+    permissions: [], 
     presence: 'available',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -93,6 +94,7 @@ export const mockMessages: Message[] = [
     isDeleted: false,
     readBy: ['user-2'],
     deliveryPriority: 'normal',
+    timestamp: new Date().toISOString(), 
     createdAt: new Date(Date.now() - 300000).toISOString(),
     updatedAt: new Date(Date.now() - 300000).toISOString(),
   },
@@ -165,12 +167,29 @@ export const mockFiles: FileItem[] = [
     size: 1024000,
     mimeType: 'image/png',
     url: '/uploads/design-mockup.png',
-    uploadedBy: 'user-2',
+    uploadedBy: { id: 'user-2', name: 'Jane Smith' }, 
     context: {
       type: 'project',
       id: 'proj-1',
       name: 'Website Redesign',
     },
+    status: 'ready',
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'file-2',
+    name: 'style-guide.pdf',
+    size: 512000,
+    mimeType: 'application/pdf',
+    url: '/uploads/style-guide.pdf',
+    uploadedBy: { id: 'user-1', name: 'Admin User' }, 
+    context: {
+      type: 'project',
+      id: 'proj-1',
+      name: 'Website Redesign',
+    },
+    status: 'ready',
     createdAt: new Date(Date.now() - 86400000).toISOString(),
     updatedAt: new Date(Date.now() - 86400000).toISOString(),
   },
@@ -186,7 +205,7 @@ export class MockDatabase {
   private files: Map<string, FileItem> = new Map()
   private orgTree: OrgUnit | null = null
   private notificationsByUser: Map<string, Notification[]> = new Map()
-  private threadMessages: Map<string, Message[]> = new Map() // parentMessageId -> replies
+  private threadMessages: Map<string, Message[]> = new Map() 
   private mailById: Map<string, MailMessage> = new Map()
 
   constructor() {
@@ -242,7 +261,6 @@ export class MockDatabase {
       id: 'ou-root',
       name: 'Company',
       type: 'division',
-      parentId: undefined,
       children: [],
       members: [],
       order: 0,
@@ -274,6 +292,7 @@ export class MockDatabase {
         isRead: false,
         isStarred: false,
         priority: 'normal',
+        date: new Date().toISOString(), 
         createdAt: new Date(Date.now() - 3600_000).toISOString(),
         updatedAt: new Date(Date.now() - 3600_000).toISOString(),
       },
@@ -369,7 +388,23 @@ export class MockDatabase {
     if (!msgs) return undefined
     const idx = msgs.findIndex((m) => m.id === messageId)
     if (idx === -1) return undefined
-    const updated = { ...msgs[idx], ...patch, updatedAt: new Date().toISOString() }
+    const base = msgs[idx]!
+    const updated: Message = {
+      ...base,
+      ...patch,
+      id: base.id,
+      chatId: base.chatId,
+      senderId: base.senderId,
+      content: base.content,
+      type: base.type,
+      isEdited: base.isEdited,
+      isDeleted: base.isDeleted,
+      readBy: base.readBy,
+      deliveryPriority: base.deliveryPriority,
+      timestamp: base.timestamp,
+      createdAt: base.createdAt,
+      updatedAt: new Date().toISOString(),
+    }
     msgs[idx] = updated
     this.messages.set(chatId, [...msgs])
     return updated
@@ -502,7 +537,14 @@ export class MockDatabase {
     if (!list) return false
     const idx = list.findIndex((n) => n.id === notificationId)
     if (idx === -1) return false
-    list[idx] = { ...list[idx], isRead: true }
+    const current = list[idx]!
+    const updated: Notification = {
+      ...current,
+      id: current.id,
+      userId: current.userId,
+      isRead: true,
+    }
+    list[idx] = updated
     this.notificationsByUser.set(userId, list)
     return true
   }

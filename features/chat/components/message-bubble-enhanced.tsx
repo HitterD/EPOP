@@ -73,7 +73,7 @@ export function MessageBubbleEnhanced({
       {/* Avatar */}
       {showAvatar && (
         <Avatar
-          src={message.sender?.avatar}
+          {...(message.sender?.avatar ? { src: message.sender.avatar } : {})}
           alt={message.sender?.name || 'User'}
           size="sm"
           fallback={message.sender?.name?.[0] || 'U'}

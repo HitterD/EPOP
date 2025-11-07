@@ -10,7 +10,7 @@ const VirtualMessageStream = dynamic(
   { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-muted/30" /> }
 )
 import { ChatCompose } from '@/features/chat/components/chat-compose'
-import { Message } from '@/types'
+import { Message, ChatMessageEvent } from '@/types'
 import { useChats, useChatMessages } from '@/lib/api/hooks/use-chats'
 import { useDomainEvents } from '@/lib/socket/hooks/use-domain-events'
 import { SOCKET_EVENTS } from '@/lib/constants'
@@ -57,9 +57,9 @@ export default function ChatDetailPage({ params }: { params: { chatId: string } 
   }, [socket, params.chatId, setActiveChat, clearUnread])
 
   // Listen for new messages via domain events
-  useDomainEvents<Message>({
+  useDomainEvents<ChatMessageEvent>({
     eventType: SOCKET_EVENTS.CHAT_MESSAGE_CREATED,
-    onEvent: (event: any) => {
+    onEvent: (event: ChatMessageEvent) => {
       const msg = event?.patch as Message
       if (msg?.chatId === params.chatId) {
         const exists = messages.some((m) => m.id === msg.id)

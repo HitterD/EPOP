@@ -13,6 +13,12 @@ export async function GET(req: NextRequest) {
   }
 
   const userId = accessToken.split('_')[1]
+  if (!userId) {
+    return NextResponse.json(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
+      { status: 401 }
+    )
+  }
   const projects = db.getUserProjects(userId)
   const chats = db.getUserChats(userId)
   const files = db.getAllFiles()
@@ -28,7 +34,7 @@ export async function GET(req: NextRequest) {
       title: t.title,
       type: 'task' as const,
       startDate: t.startDate || t.dueDate!,
-      endDate: t.dueDate,
+      ...(t.dueDate ? { endDate: t.dueDate } : {}),
       projectId: t.projectId,
     }))
     .slice(0, 5)

@@ -42,11 +42,16 @@ export function VirtualizedSearchResults({
     getScrollElement: () => parentRef.current,
     estimateSize: () => 100,
     overscan: 10,
-    measureElement:
-      typeof window !== 'undefined' &&
-      navigator.userAgent.indexOf('Firefox') === -1
-        ? element => element?.getBoundingClientRect().height
-        : undefined,
+    // Do not pass undefined for measureElement under exactOptionalPropertyTypes
+    ...(typeof window !== 'undefined' && navigator.userAgent.indexOf('Firefox') === -1
+      ? {
+          measureElement: (
+            element: Element,
+            _entry?: ResizeObserverEntry,
+            _instance?: import('@tanstack/react-virtual').Virtualizer<HTMLDivElement, Element>,
+          ) => (element as HTMLElement).getBoundingClientRect().height,
+        }
+      : {}),
   })
 
   const items = virtualizer.getVirtualItems()
@@ -94,7 +99,7 @@ export function VirtualizedSearchResults({
         }}
       >
         {items.map((virtualRow) => {
-          const result = results[virtualRow.index]
+          const result = results[virtualRow.index]!
 
           return (
             <div
@@ -113,16 +118,16 @@ export function VirtualizedSearchResults({
                 onClick={() => onResultClick(result)}
                 className="px-4 py-3 border-b hover:bg-accent/50 cursor-pointer transition-colors"
               >
-                {result.type === 'message' && (
+                {result && result.type === 'message' && (
                   <MessageResult result={result} query={query} highlightText={highlightText} />
                 )}
-                {result.type === 'project' && (
+                {result && result.type === 'project' && (
                   <ProjectResult result={result} query={query} highlightText={highlightText} />
                 )}
-                {result.type === 'user' && (
+                {result && result.type === 'user' && (
                   <UserResult result={result} query={query} highlightText={highlightText} />
                 )}
-                {result.type === 'file' && (
+                {result && result.type === 'file' && (
                   <FileResult result={result} query={query} highlightText={highlightText} />
                 )}
               </div>
@@ -148,8 +153,7 @@ function MessageResult({ result, query, highlightText }: any) {
             <Avatar
               src={result.metadata.sender.avatar}
               alt={result.metadata.sender.name}
-              size="xs"
-              fallback={result.metadata.sender.name[0]}
+              size="sm"
             />
           )}
           <span className="text-sm font-medium">
@@ -195,9 +199,9 @@ function UserResult({ result, query, highlightText }: any) {
   return (
     <div className="flex items-center gap-3">
       <Avatar
+        src={result.metadata?.avatar}
         alt={result.title}
         size="md"
-        fallback={result.title[0]}
       />
       <div className="flex-1 min-w-0">
         <div className="font-medium">{highlightText(result.title, query)}</div>

@@ -22,7 +22,7 @@ import { IfCan } from '@/components/auth/if-can'
 interface NavItem {
   name: string
   href: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<any>
   badge?: number
   adminOnly?: boolean
   shortcut?: string

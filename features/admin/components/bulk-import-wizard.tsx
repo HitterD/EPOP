@@ -81,7 +81,8 @@ export function BulkImportWizard({
   const handleBack = () => {
     const prevIndex = currentStepIndex - 1
     if (prevIndex >= 0) {
-      setCurrentStep(steps[prevIndex].id)
+      const prev = steps[prevIndex]
+      if (prev) setCurrentStep(prev.id)
     }
   }
 
@@ -158,7 +159,7 @@ export function BulkImportWizard({
           <BulkImportUploadStep
             entityType={entityType}
             onComplete={handleUploadComplete}
-            onCancel={onCancel}
+            {...(onCancel ? { onCancel } : {})}
           />
         )}
 
@@ -201,7 +202,7 @@ export function BulkImportWizard({
           <BulkImportResultStep
             result={result}
             onRestart={handleRestart}
-            onClose={onCancel}
+            {...(onCancel ? { onClose: onCancel } : {})}
           />
         )}
       </div>

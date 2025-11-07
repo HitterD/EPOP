@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../client'
-import { AuditEvent, AuditFilters, CursorPaginatedResponse } from '@/types'
+import { AuditEvent, AuditFilters, CursorPaginatedResponse, DomainEvent } from '@/types'
 import { useEffect } from 'react'
 import { getSocket } from '@/lib/socket/client'
 
@@ -62,7 +62,7 @@ export function useAuditRealtimeSync(
   useEffect(() => {
     const socket = getSocket()
 
-    const handler = (event: any) => {
+    const handler = (event: DomainEvent<AuditEvent>) => {
       // Invalidate audit queries to refetch
       queryClient.invalidateQueries({ 
         queryKey: ['audit', contextType, contextId] 

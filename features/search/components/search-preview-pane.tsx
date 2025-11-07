@@ -70,10 +70,30 @@ export function SearchPreviewPane({ result, onClose }: SearchPreviewPaneProps) {
       {/* Content */}
       <ScrollArea className="flex-1">
         <CardContent className="p-6">
-          {result.type === 'message' && <MessagePreview item={result.item} highlights={result.highlights} />}
-          {result.type === 'project' && <ProjectPreview item={result.item} highlights={result.highlights} />}
-          {result.type === 'user' && <UserPreview item={result.item} highlights={result.highlights} />}
-          {result.type === 'file' && <FilePreview item={result.item} highlights={result.highlights} />}
+          {result.type === 'message' && (
+            <MessagePreview
+              item={result.item}
+              {...(result.highlights ? { highlights: result.highlights } : {})}
+            />
+          )}
+          {result.type === 'project' && (
+            <ProjectPreview
+              item={result.item}
+              {...(result.highlights ? { highlights: result.highlights } : {})}
+            />
+          )}
+          {result.type === 'user' && (
+            <UserPreview
+              item={result.item}
+              {...(result.highlights ? { highlights: result.highlights } : {})}
+            />
+          )}
+          {result.type === 'file' && (
+            <FilePreview
+              item={result.item}
+              {...(result.highlights ? { highlights: result.highlights } : {})}
+            />
+          )}
         </CardContent>
       </ScrollArea>
 

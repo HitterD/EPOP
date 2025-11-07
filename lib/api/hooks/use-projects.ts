@@ -44,7 +44,10 @@ export function useProjectTasks(projectId: string | undefined, limit = 100) {
   return useInfiniteQuery({
     queryKey: ['project-tasks', projectId],
     queryFn: async ({ pageParam }) => {
-      const query = buildCursorQuery({ cursor: pageParam, limit })
+      const query = buildCursorQuery({
+        ...(pageParam ? { cursor: pageParam } : {}),
+        ...(limit ? { limit } : {}),
+      })
       const res = await apiClient.get<CursorPaginatedResponse<Task>>(
         `/projects/${projectId}/tasks${query}`
       )
@@ -81,8 +84,24 @@ export function useUpdateTask(projectId: string) {
       if (!res.success || !res.data) throw new Error('Failed to update task')
       return res.data
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project-tasks', projectId] })
+    onSuccess: (saved) => {
+      // Update tasks infinite list
+      qc.setQueryData(['project-tasks', projectId], (old: any) => {
+        if (!old || !Array.isArray(old.pages)) return old
+        const pages = old.pages.map((p: any) => ({
+          ...p,
+          items: (p.items || []).map((t: Task) => (t.id === saved.id ? { ...t, ...saved } : t)),
+        }))
+        return { ...old, pages }
+      })
+      // Update bucket snapshot
+      qc.setQueryData(['project-buckets', projectId], (old: any) => {
+        if (!old || !Array.isArray(old)) return old
+        return old.map((b: any) => ({
+          ...b,
+          tasks: (b.tasks || []).map((t: Task) => (t.id === saved.id ? { ...t, ...saved } : t)),
+        }))
+      })
     },
   })
 }
@@ -99,8 +118,11 @@ export function useAddBucket(projectId: string) {
       if (!res.success || !res.data) throw new Error('Failed to add bucket')
       return res.data
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project-buckets', projectId] })
+    onSuccess: (bucket) => {
+      qc.setQueryData(['project-buckets', projectId], (old: any) => {
+        if (!old || !Array.isArray(old)) return old
+        return [bucket, ...old]
+      })
     },
   })
 }
@@ -242,9 +264,24 @@ export function useCreateTask(projectId: string) {
       if (!res.success || !res.data) throw new Error('Failed to create task')
       return res.data
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project-tasks', projectId] })
-      qc.invalidateQueries({ queryKey: ['project-buckets', projectId] })
+    onSuccess: (saved) => {
+      // Prepend to tasks infinite list
+      qc.setQueryData(['project-tasks', projectId], (old: any) => {
+        if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old
+        const first = old.pages[0]
+        return {
+          ...old,
+          pages: [
+            { ...first, items: [saved, ...(first.items || [])] },
+            ...old.pages.slice(1),
+          ],
+        }
+      })
+      // Add into bucket snapshot
+      qc.setQueryData(['project-buckets', projectId], (old: any) => {
+        if (!old || !Array.isArray(old)) return old
+        return old.map((b: any) => (b.id === saved.bucketId ? { ...b, tasks: [saved, ...(b.tasks || [])] } : b))
+      })
     },
   })
 }
@@ -259,9 +296,24 @@ export function useDeleteTask(projectId: string) {
       const res = await apiClient.delete(`/projects/${projectId}/tasks/${taskId}`)
       if (!res.success) throw new Error('Failed to delete task')
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project-tasks', projectId] })
-      qc.invalidateQueries({ queryKey: ['project-buckets', projectId] })
+    onSuccess: (_ok, taskId) => {
+      // Remove from tasks infinite list
+      qc.setQueryData(['project-tasks', projectId], (old: any) => {
+        if (!old || !Array.isArray(old.pages)) return old
+        const pages = old.pages.map((p: any) => ({
+          ...p,
+          items: (p.items || []).filter((t: Task) => t.id !== taskId),
+        }))
+        return { ...old, pages }
+      })
+      // Remove from buckets snapshot
+      qc.setQueryData(['project-buckets', projectId], (old: any) => {
+        if (!old || !Array.isArray(old)) return old
+        return old.map((b: any) => ({
+          ...b,
+          tasks: (b.tasks || []).filter((t: Task) => t.id !== taskId),
+        }))
+      })
     },
   })
 }

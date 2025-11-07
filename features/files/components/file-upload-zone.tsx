@@ -21,21 +21,29 @@ interface FileUploadItem {
 
 interface FileUploadZoneProps {
   onUploadComplete?: (fileIds: string[]) => void
+  onUpload?: (files: File[]) => void
   maxFiles?: number
   maxSize?: number // in bytes
   accept?: Record<string, string[]>
   contextType?: string
   contextId?: string
+  placeholder?: string
+  multiple?: boolean
+  disabled?: boolean
   className?: string
 }
 
 export function FileUploadZone({
   onUploadComplete,
+  onUpload,
   maxFiles = 10,
   maxSize = 10 * 1024 * 1024, // 10MB default
   accept,
   contextType,
   contextId,
+  placeholder,
+  multiple,
+  disabled,
   className,
 }: FileUploadZoneProps) {
   const [uploadQueue, setUploadQueue] = useState<FileUploadItem[]>([])
@@ -70,8 +78,8 @@ export function FileUploadZone({
           // Upload with progress tracking
           const result = await uploadFile({
             file: item.file,
-            contextType,
-            contextId,
+            ...(contextType ? { contextType } : {}),
+            ...(contextId ? { contextId } : {}),
             onProgress: (progress) => {
               setUploadQueue((prev) =>
                 prev.map((i) =>
@@ -129,11 +137,23 @@ export function FileUploadZone({
     [uploadQueue, maxFiles, uploadFile, contextType, contextId, onUploadComplete]
   )
 
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? [])
+      if (files.length === 0) return
+      onUpload?.(files)
+      void handleFilesAdded(files)
+    },
+    [onUpload, handleFilesAdded]
+  )
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleFilesAdded,
     maxFiles,
     maxSize,
-    accept,
+    ...(accept ? { accept } : {}),
+    ...(typeof multiple === 'boolean' ? { multiple } : {}),
+    ...(typeof disabled === 'boolean' ? { disabled } : {}),
   })
 
   const removeFile = (id: string) => {
@@ -142,9 +162,11 @@ export function FileUploadZone({
 
   const retryUpload = async (item: FileUploadItem) => {
     setUploadQueue((prev) =>
-      prev.map((i) =>
-        i.id === item.id ? { ...i, status: 'pending', progress: 0, error: undefined } : i
-      )
+      prev.map((i) => {
+        if (i.id !== item.id) return i
+        const { error, ...rest } = i
+        return { ...rest, status: 'pending', progress: 0 }
+      })
     )
 
     await handleFilesAdded([item.file])
@@ -164,17 +186,20 @@ export function FileUploadZone({
           isDragActive
             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10'
             : 'border-gray-300 dark:border-gray-700 hover:border-primary-400',
-          uploadQueue.some((i) => i.status === 'uploading') && 'pointer-events-none opacity-50'
+          (uploadQueue.some((i) => i.status === 'uploading') || disabled) && 'pointer-events-none opacity-50'
         )}
       >
-        <input {...getInputProps()} />
+        <input
+          data-testid="file-input"
+          {...getInputProps({ onChange: handleInputChange, multiple, disabled })}
+        />
         <div className="flex flex-col items-center gap-3">
           <div className="rounded-full bg-primary-100 dark:bg-primary-900/20 p-4">
-            <Upload size={32} className="text-primary-500" />
+            <Upload data-testid="upload-icon" size={32} className="text-primary-500" />
           </div>
           <div>
             <p className="text-sm font-medium">
-              {isDragActive ? 'Drop files here' : 'Drag & drop files here'}
+              {placeholder || (isDragActive ? 'Drop files here' : 'Drag & drop files here')}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               or click to browse • Max {maxFiles} files • {formatFileSize(maxSize)} each

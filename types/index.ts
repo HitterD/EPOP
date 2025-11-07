@@ -567,12 +567,12 @@ export interface ProjectTaskEvent extends DomainEvent<Task> {
   bucketId?: string
 }
 
-export interface UserPresenceEvent extends DomainEvent {
+export interface UserPresenceEvent extends DomainEvent<User> {
   userId: string
   status: PresenceStatus
 }
 
-export interface FileEvent extends DomainEvent {
+export interface FileEvent extends DomainEvent<FileItem> {
   fileId: string
   status?: 'pending' | 'scanning' | 'ready' | 'infected'
 }

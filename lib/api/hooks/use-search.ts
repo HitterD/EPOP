@@ -84,19 +84,19 @@ export function useSearch(params: SearchParams) {
  * Search specific tab
  */
 export function useSearchMessages(query: string, filters?: SearchFilters) {
-  return useSearch({ query, tab: 'messages', filters })
+  return useSearch(filters ? { query, tab: 'messages', filters } : { query, tab: 'messages' })
 }
 
 export function useSearchProjects(query: string, filters?: SearchFilters) {
-  return useSearch({ query, tab: 'projects', filters })
+  return useSearch(filters ? { query, tab: 'projects', filters } : { query, tab: 'projects' })
 }
 
 export function useSearchUsers(query: string, filters?: SearchFilters) {
-  return useSearch({ query, tab: 'users', filters })
+  return useSearch(filters ? { query, tab: 'users', filters } : { query, tab: 'users' })
 }
 
 export function useSearchFiles(query: string, filters?: SearchFilters) {
-  return useSearch({ query, tab: 'files', filters })
+  return useSearch(filters ? { query, tab: 'files', filters } : { query, tab: 'files' })
 }
 
 /**

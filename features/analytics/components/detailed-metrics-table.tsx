@@ -42,7 +42,7 @@ function generateMockData(count: number = 100): UserMetric[] {
     taskCount: Math.floor(Math.random() * 50) + 5,
     avgResponseTime: Math.random() * 8 + 0.5,
     lastActive: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-    status: statuses[Math.floor(Math.random() * statuses.length)],
+    status: (statuses[Math.floor(Math.random() * statuses.length)] ?? 'active'),
   }))
 }
 
@@ -261,6 +261,7 @@ export function DetailedMetricsTable() {
             <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const row = rows[virtualRow.index]
+                if (!row) return null
                 return (
                   <div
                     key={row.id}

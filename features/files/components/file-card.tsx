@@ -275,10 +275,10 @@ export function FileCard({
         {file.uploadedBy && (
           <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
             <Avatar
-              src={file.uploadedBy.avatar}
+              {...(file.uploadedBy.avatar ? { src: file.uploadedBy.avatar } : {})}
               alt={file.uploadedBy.name}
               size="xs"
-              fallback={file.uploadedBy.name[0]}
+              fallback={file.uploadedBy.name?.[0] ?? 'U'}
             />
             <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
               {file.uploadedBy.name}

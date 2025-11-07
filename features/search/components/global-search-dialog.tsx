@@ -15,6 +15,7 @@ import { SearchFilters } from './search-filters'
 import { Search, Loader2, Command } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import type { SearchResult as ApiSearchResult } from '@/types'
 
 interface GlobalSearchDialogProps {
   isOpen: boolean
@@ -24,27 +25,134 @@ interface GlobalSearchDialogProps {
 export function GlobalSearchDialog({ isOpen, onClose }: GlobalSearchDialogProps) {
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | 'messages' | 'projects' | 'users' | 'files'>('all')
-  const [filters, setFilters] = useState({
-    dateFrom: undefined as string | undefined,
-    dateTo: undefined as string | undefined,
-    fileType: undefined as string | undefined,
-    userId: undefined as string | undefined,
-  })
+  const [filters, setFilters] = useState<Partial<{
+    dateFrom: string
+    dateTo: string
+    fileType: string
+    userId: string
+  }>>({})
 
   const debouncedQuery = useDebounce(query, 300)
   const router = useRouter()
 
   // Fetch search results
+  type UISearchResult = {
+    id: string
+    type: 'message' | 'project' | 'user' | 'file'
+    title: string
+    content?: string
+    snippet?: string
+    metadata?: {
+      chatName?: string
+      sender?: { name: string; avatar?: string }
+      projectName?: string
+      fileName?: string
+      fileSize?: number
+      date?: string
+      status?: string
+      avatar?: string
+      name?: string
+      email?: string
+      department?: string
+      uploadedBy?: string
+    }
+  }
+  const [searchResults, setSearchResults] = useState<UISearchResult[]>([])
   const {
-    data: searchResults,
+    data: searchData,
     isLoading,
     error,
   } = useSearch({
     query: debouncedQuery,
-    type: activeTab === 'all' ? undefined : activeTab,
-    ...filters,
-    enabled: debouncedQuery.length >= 2,
+    tab: activeTab,
+    ...(filters && Object.keys(filters).length
+      ? {
+          filters: {
+            ...(filters.dateFrom && filters.dateTo
+              ? { dateRange: { from: filters.dateFrom, to: filters.dateTo } }
+              : {}),
+            ...(filters.userId ? { senderId: filters.userId } : {}),
+            ...(filters.fileType ? { fileType: filters.fileType } : {}),
+          },
+        }
+      : {}),
   })
+
+  useEffect(() => {
+    if (!searchData) {
+      setSearchResults([])
+      return
+    }
+    const data = searchData as ApiSearchResult
+    const arr: UISearchResult[] = []
+    // Messages
+    data.messages?.forEach(({ item }) => {
+      arr.push({
+        id: item.id,
+        type: 'message',
+        title: item.content || 'Message',
+        content: item.content,
+        ...(item.content ? { snippet: item.content } : {}),
+        metadata: {
+          ...(item.sender
+            ? {
+                sender: {
+                  name: item.sender.name,
+                  ...(item.sender.avatar ? { avatar: item.sender.avatar } : {}),
+                },
+              }
+            : {}),
+          date: item.createdAt,
+        },
+      })
+    })
+    // Projects
+    data.projects?.forEach(({ item }) => {
+      arr.push({
+        id: item.id,
+        type: 'project',
+        title: item.name,
+        ...(item.description ? { snippet: item.description } : {}),
+        metadata: {
+          date: item.updatedAt,
+        },
+      })
+    })
+    // Users
+    data.users?.forEach(({ item }) => {
+      arr.push({
+        id: item.id,
+        type: 'user',
+        title: item.name,
+        snippet: item.email,
+        metadata: {
+          ...(item.avatar ? { avatar: item.avatar } : {}),
+          name: item.name,
+          email: item.email,
+          ...(item.department ? { department: item.department } : {}),
+          status: item.presence,
+        },
+      })
+    })
+    // Files
+    data.files?.forEach(({ item }) => {
+      arr.push({
+        id: item.id,
+        type: 'file',
+        title: item.name,
+        snippet: item.mimeType,
+        metadata: {
+          fileName: item.name,
+          fileSize: item.size,
+          date: item.createdAt,
+          ...(item.uploadedBy?.name ? { uploadedBy: item.uploadedBy.name } : {}),
+        },
+      })
+    })
+    setSearchResults(arr)
+  }, [searchData])
+
+  const searchResultsArray = searchResults
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -69,27 +177,22 @@ export function GlobalSearchDialog({ isOpen, onClose }: GlobalSearchDialogProps)
       }
 
       // Enter to select first result
-      if (isOpen && e.key === 'Enter' && searchResults && searchResults.length > 0) {
-        const firstResult = searchResults[0]
+      if (isOpen && e.key === 'Enter' && searchResultsArray?.length > 0) {
+        const firstResult = searchResultsArray[0]
         handleResultClick(firstResult)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, searchResults, onClose])
+  }, [isOpen, searchResultsArray, onClose])
 
   // Reset on close
   useEffect(() => {
     if (!isOpen) {
       setQuery('')
       setActiveTab('all')
-      setFilters({
-        dateFrom: undefined,
-        dateTo: undefined,
-        fileType: undefined,
-        userId: undefined,
-      })
+      setFilters({})
     }
   }, [isOpen])
 
@@ -110,15 +213,15 @@ export function GlobalSearchDialog({ isOpen, onClose }: GlobalSearchDialogProps)
   }
 
   // Group results by type
-  const groupedResults = searchResults?.reduce((acc, result) => {
+  const groupedResults = searchResultsArray.reduce((acc, result) => {
     const type = result.type || 'other'
     if (!acc[type]) acc[type] = []
     acc[type].push(result)
     return acc
-  }, {} as Record<string, any[]>) || {}
+  }, {} as Record<string, any[]>)
 
   const resultCounts = {
-    all: searchResults?.length || 0,
+    all: searchResultsArray?.length || 0,
     messages: groupedResults.message?.length || 0,
     projects: groupedResults.project?.length || 0,
     users: groupedResults.user?.length || 0,
@@ -233,7 +336,7 @@ export function GlobalSearchDialog({ isOpen, onClose }: GlobalSearchDialogProps)
               <div className="flex flex-col items-center justify-center h-full text-center p-8">
                 <p className="text-sm text-red-500">Failed to search. Please try again.</p>
               </div>
-            ) : !searchResults || searchResults.length === 0 ? (
+            ) : !searchResultsArray?.length ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-8">
                 <Search size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No results found</h3>
@@ -245,7 +348,7 @@ export function GlobalSearchDialog({ isOpen, onClose }: GlobalSearchDialogProps)
               <>
                 <TabsContent value="all" className="mt-0">
                   <SearchResultsList
-                    results={searchResults}
+                    results={searchResultsArray}
                     query={debouncedQuery}
                     onResultClick={handleResultClick}
                   />

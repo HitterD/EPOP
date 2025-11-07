@@ -56,10 +56,9 @@ export function FileDropzone({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept,
     maxFiles,
     maxSize,
-    ...props,
+    ...(accept ? { accept } : {}),
   })
 
   const removeFile = React.useCallback((name: string) => {

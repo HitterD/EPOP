@@ -12,14 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Filter, X } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 
+interface SearchFiltersShape {
+  dateFrom?: string
+  dateTo?: string
+  fileType?: string
+  userId?: string
+}
+
 interface SearchFiltersProps {
-  filters: {
-    dateFrom?: string
-    dateTo?: string
-    fileType?: string
-    userId?: string
-  }
-  onFiltersChange: (filters: any) => void
+  filters: SearchFiltersShape
+  onFiltersChange: (filters: Partial<SearchFiltersShape>) => void
   resultType?: string
 }
 
@@ -27,12 +29,7 @@ export function SearchFilters({ filters, onFiltersChange, resultType }: SearchFi
   const hasFilters = filters.dateFrom || filters.dateTo || filters.fileType || filters.userId
 
   const clearFilters = () => {
-    onFiltersChange({
-      dateFrom: undefined,
-      dateTo: undefined,
-      fileType: undefined,
-      userId: undefined,
-    })
+    onFiltersChange({})
   }
 
   return (
@@ -77,7 +74,7 @@ export function SearchFilters({ filters, onFiltersChange, resultType }: SearchFi
                       onSelect={(date) =>
                         onFiltersChange({
                           ...filters,
-                          dateFrom: date?.toISOString(),
+                          ...(date ? { dateFrom: date.toISOString() } : {}),
                         })
                       }
                     />
@@ -97,7 +94,7 @@ export function SearchFilters({ filters, onFiltersChange, resultType }: SearchFi
                       onSelect={(date) =>
                         onFiltersChange({
                           ...filters,
-                          dateTo: date?.toISOString(),
+                          ...(date ? { dateTo: date.toISOString() } : {}),
                         })
                       }
                     />
@@ -112,12 +109,14 @@ export function SearchFilters({ filters, onFiltersChange, resultType }: SearchFi
                 <Label className="text-xs">File type</Label>
                 <Select
                   value={filters.fileType || 'all'}
-                  onValueChange={(value) =>
-                    onFiltersChange({
-                      ...filters,
-                      fileType: value === 'all' ? undefined : value,
-                    })
-                  }
+                  onValueChange={(value) => {
+                    if (value === 'all') {
+                      const { fileType, ...rest } = filters
+                      onFiltersChange(rest)
+                    } else {
+                      onFiltersChange({ ...filters, fileType: value })
+                    }
+                  }}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="All types" />
@@ -142,7 +141,10 @@ export function SearchFilters({ filters, onFiltersChange, resultType }: SearchFi
         <div className="flex items-center gap-1 px-2 py-1 bg-primary-100 dark:bg-primary-900/20 rounded text-xs">
           <span>From: {formatDate(filters.dateFrom, 'PP')}</span>
           <button
-            onClick={() => onFiltersChange({ ...filters, dateFrom: undefined })}
+            onClick={() => {
+              const { dateFrom, ...rest } = filters
+              onFiltersChange(rest)
+            }}
             className="hover:bg-primary-200 dark:hover:bg-primary-800 rounded p-0.5"
           >
             <X size={12} />
@@ -154,7 +156,10 @@ export function SearchFilters({ filters, onFiltersChange, resultType }: SearchFi
         <div className="flex items-center gap-1 px-2 py-1 bg-primary-100 dark:bg-primary-900/20 rounded text-xs">
           <span>To: {formatDate(filters.dateTo, 'PP')}</span>
           <button
-            onClick={() => onFiltersChange({ ...filters, dateTo: undefined })}
+            onClick={() => {
+              const { dateTo, ...rest } = filters
+              onFiltersChange(rest)
+            }}
             className="hover:bg-primary-200 dark:hover:bg-primary-800 rounded p-0.5"
           >
             <X size={12} />
@@ -166,7 +171,10 @@ export function SearchFilters({ filters, onFiltersChange, resultType }: SearchFi
         <div className="flex items-center gap-1 px-2 py-1 bg-primary-100 dark:bg-primary-900/20 rounded text-xs">
           <span>Type: {filters.fileType}</span>
           <button
-            onClick={() => onFiltersChange({ ...filters, fileType: undefined })}
+            onClick={() => {
+              const { fileType, ...rest } = filters
+              onFiltersChange(rest)
+            }}
             className="hover:bg-primary-200 dark:hover:bg-primary-800 rounded p-0.5"
           >
             <X size={12} />

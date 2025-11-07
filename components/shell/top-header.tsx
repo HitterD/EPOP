@@ -162,7 +162,7 @@ export function TopHeader() {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 rounded-md p-1 hover:bg-accent">
               <AvatarWithPresence
-                src={session.user.avatar}
+                {...(session.user.avatar ? { src: session.user.avatar } : {})}
                 alt={session.user.name}
                 fallback={getInitials(session.user.name)}
                 status={session.user.presence}

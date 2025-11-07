@@ -18,11 +18,11 @@ class PerformanceMonitor {
    * Start tracking a metric
    */
   start(name: string, metadata?: Record<string, any>): void {
-    this.metrics.set(name, {
+    const base: PerformanceMetrics = {
       name,
       startTime: performance.now(),
-      metadata,
-    })
+    }
+    this.metrics.set(name, metadata ? { ...base, metadata } : base)
   }
 
   /**

@@ -40,11 +40,15 @@ export function VirtualizedMailList({
     getScrollElement: () => parentRef.current,
     estimateSize: () => 80, // Estimated row height
     overscan: 10, // Render 10 items above/below viewport
-    measureElement:
-      typeof window !== 'undefined' &&
-      navigator.userAgent.indexOf('Firefox') === -1
-        ? element => element?.getBoundingClientRect().height
-        : undefined,
+    ...(typeof window !== 'undefined' && navigator.userAgent.indexOf('Firefox') === -1
+      ? {
+          measureElement: (
+            element: Element,
+            _entry?: ResizeObserverEntry,
+            _instance?: import('@tanstack/react-virtual').Virtualizer<HTMLDivElement, Element>,
+          ) => (element as HTMLElement).getBoundingClientRect().height,
+        }
+      : {}),
   })
 
   const items = virtualizer.getVirtualItems()
@@ -98,6 +102,7 @@ export function VirtualizedMailList({
           >
             {items.map((virtualRow) => {
               const mail = mails[virtualRow.index]
+              if (!mail) return null
               const isSelected = selectedIds.includes(mail.id)
               const isActive = selectedMail?.id === mail.id
 

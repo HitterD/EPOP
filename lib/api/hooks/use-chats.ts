@@ -27,7 +27,10 @@ export function useChatMessages(chatId: string, limit = 50) {
   return useInfiniteQuery({
     queryKey: ['chat-messages', chatId],
     queryFn: async ({ pageParam }) => {
-      const query = buildCursorQuery({ cursor: pageParam, limit })
+      const query = buildCursorQuery({
+        ...(pageParam ? { cursor: pageParam } : {}),
+        ...(limit ? { limit } : {}),
+      })
       const response = await apiClient.get<CursorPaginatedResponse<Message>>(
         `/chats/${chatId}/messages${query}`
       )
@@ -82,9 +85,27 @@ export function useSendMessage(chatId: string) {
             }),
           }
         })
+      } else if (saved) {
+        // No optimistic placeholder found; prepend to first page
+        queryClient.setQueryData(['chat-messages', chatId], (oldData: any) => {
+          if (!oldData || !Array.isArray(oldData.pages) || oldData.pages.length === 0) return oldData
+          const first = oldData.pages[0]
+          return {
+            ...oldData,
+            pages: [
+              { ...first, items: [saved, ...(first.items || [])] },
+              ...oldData.pages.slice(1),
+            ],
+          }
+        })
       }
-      // Also ensure a refresh for consistency
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', chatId] })
+      // Update chat list last message
+      if (saved) {
+        queryClient.setQueryData(['chats'], (old: any) => {
+          if (!old || !Array.isArray(old)) return old
+          return old.map((c: any) => (c.id === chatId ? { ...c, lastMessage: saved } : c))
+        })
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message)
@@ -99,7 +120,10 @@ export function useThreadMessages(chatId: string, messageId: string, limit = 50)
   return useInfiniteQuery({
     queryKey: ['thread-messages', chatId, messageId],
     queryFn: async ({ pageParam }) => {
-      const query = buildCursorQuery({ cursor: pageParam, limit })
+      const query = buildCursorQuery({
+        ...(pageParam ? { cursor: pageParam } : {}),
+        ...(limit ? { limit } : {}),
+      })
       const response = await apiClient.get<CursorPaginatedResponse<Message>>(
         `/chats/${chatId}/messages/${messageId}/thread${query}`
       )
@@ -133,8 +157,26 @@ export function useAddReaction(chatId: string) {
       }
       return response.data
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', chatId] })
+    onSuccess: (_data, { messageId, emoji }) => {
+      queryClient.setQueryData(['chat-messages', chatId], (oldData: any) => {
+        if (!oldData || !Array.isArray(oldData.pages)) return oldData
+        const pages = oldData.pages.map((page: any) => ({
+          ...page,
+          items: (page.items || []).map((m: any) => {
+            if (m.id !== messageId) return m
+            const summary = Array.isArray(m.reactionsSummary) ? [...m.reactionsSummary] : []
+            const idx = summary.findIndex((r: any) => r.emoji === emoji)
+            if (idx >= 0) {
+              const r = summary[idx]
+              summary[idx] = { ...r, count: (r.count || 0) + 1, hasCurrentUser: true }
+            } else {
+              summary.unshift({ emoji, count: 1, userIds: [], hasCurrentUser: true })
+            }
+            return { ...m, reactionsSummary: summary }
+          }),
+        }))
+        return { ...oldData, pages }
+      })
     },
   })
 }
@@ -154,8 +196,25 @@ export function useRemoveReaction(chatId: string) {
         throw new Error('Failed to remove reaction')
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', chatId] })
+    onSuccess: (_data, { messageId, emoji }) => {
+      queryClient.setQueryData(['chat-messages', chatId], (oldData: any) => {
+        if (!oldData || !Array.isArray(oldData.pages)) return oldData
+        const pages = oldData.pages.map((page: any) => ({
+          ...page,
+          items: (page.items || []).map((m: any) => {
+            if (m.id !== messageId) return m
+            const summary = Array.isArray(m.reactionsSummary) ? [...m.reactionsSummary] : []
+            const idx = summary.findIndex((r: any) => r.emoji === emoji)
+            if (idx >= 0) {
+              const r = summary[idx]
+              const newCount = Math.max(0, (r.count || 0) - 1)
+              summary[idx] = { ...r, count: newCount, hasCurrentUser: false }
+            }
+            return { ...m, reactionsSummary: summary.filter((r: any) => (r.count || 0) > 0) }
+          }),
+        }))
+        return { ...oldData, pages }
+      })
     },
   })
 }
@@ -196,8 +255,16 @@ export function useEditMessage(chatId: string) {
       }
       return response.data
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', chatId] })
+    onSuccess: (saved) => {
+      if (!saved) return
+      queryClient.setQueryData(['chat-messages', chatId], (oldData: any) => {
+        if (!oldData || !Array.isArray(oldData.pages)) return oldData
+        const pages = oldData.pages.map((page: any) => ({
+          ...page,
+          items: (page.items || []).map((m: any) => (m.id === saved.id ? { ...m, ...saved } : m)),
+        }))
+        return { ...oldData, pages }
+      })
     },
   })
 }
@@ -215,8 +282,15 @@ export function useDeleteMessage(chatId: string) {
         throw new Error('Failed to delete message')
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', chatId] })
+    onSuccess: (_data, messageId) => {
+      queryClient.setQueryData(['chat-messages', chatId], (oldData: any) => {
+        if (!oldData || !Array.isArray(oldData.pages)) return oldData
+        const pages = oldData.pages.map((page: any) => ({
+          ...page,
+          items: (page.items || []).filter((m: any) => m.id !== messageId),
+        }))
+        return { ...oldData, pages }
+      })
     },
   })
 }

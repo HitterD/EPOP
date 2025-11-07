@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
+import type { Notification } from '@/types'
 import { NotificationItem } from './notification-item'
 
 const meta = {
@@ -13,17 +14,18 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const baseNotification = {
+const baseNotification: Notification = {
   id: 'notif-1',
   userId: 'user-1',
-  type: 'message' as const,
+  type: 'chat_message',
   title: 'New Message',
-  body: 'You have a new message from John Doe',
-  read: false,
+  message: 'You have a new message from John Doe',
+  isRead: false,
+  timestamp: new Date().toISOString(),
   createdAt: new Date().toISOString(),
-  data: {
+  metadata: {
     chatId: 'chat-1',
-    messageId: 'msg-1',
+    senderName: 'John Doe',
   },
 }
 
@@ -37,9 +39,9 @@ export const MentionNotification: Story = {
   args: {
     notification: {
       ...baseNotification,
-      type: 'mention',
+      type: 'chat_mention',
       title: 'You were mentioned',
-      body: 'Sarah mentioned you in Project Discussion',
+      message: 'Sarah mentioned you in Project Discussion',
     },
   },
 }
@@ -50,10 +52,9 @@ export const TaskAssignedNotification: Story = {
       ...baseNotification,
       type: 'task_assigned',
       title: 'Task Assigned',
-      body: 'You have been assigned to "Implement user authentication"',
-      data: {
+      message: 'You have been assigned to "Implement user authentication"',
+      metadata: {
         projectId: 'proj-1',
-        taskId: 'task-1',
       },
     },
   },
@@ -63,12 +64,11 @@ export const TaskDueNotification: Story = {
   args: {
     notification: {
       ...baseNotification,
-      type: 'task_due',
+      type: 'project_update',
       title: 'Task Due Soon',
-      body: 'Your task "Fix critical bug" is due in 2 hours',
-      data: {
+      message: 'Your task "Fix critical bug" is due in 2 hours',
+      metadata: {
         projectId: 'proj-1',
-        taskId: 'task-2',
       },
     },
   },
@@ -78,12 +78,9 @@ export const FileSharedNotification: Story = {
   args: {
     notification: {
       ...baseNotification,
-      type: 'file_shared',
+      type: 'project_update',
       title: 'File Shared',
-      body: 'Mike shared "Q4 Report.pdf" with you',
-      data: {
-        fileId: 'file-1',
-      },
+      message: 'Mike shared "Q4 Report.pdf" with you',
     },
   },
 }
@@ -92,9 +89,9 @@ export const SystemNotification: Story = {
   args: {
     notification: {
       ...baseNotification,
-      type: 'system',
+      type: 'system_announcement',
       title: 'System Update',
-      body: 'The system will be under maintenance tonight from 10 PM - 2 AM',
+      message: 'The system will be under maintenance tonight from 10 PM - 2 AM',
     },
   },
 }
@@ -103,7 +100,7 @@ export const ReadNotification: Story = {
   args: {
     notification: {
       ...baseNotification,
-      read: true,
+      isRead: true,
     },
   },
 }
@@ -113,7 +110,7 @@ export const LongContent: Story = {
     notification: {
       ...baseNotification,
       title: 'Important Update Regarding Project Timeline and Deliverables',
-      body: 'This is a longer notification message that contains important information about the project. It should wrap properly and display all the content in a readable format without breaking the layout.',
+      message: 'This is a longer notification message that contains important information about the project. It should wrap properly and display all the content in a readable format without breaking the layout.',
     },
   },
 }

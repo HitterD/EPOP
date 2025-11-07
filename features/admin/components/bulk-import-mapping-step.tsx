@@ -59,7 +59,8 @@ export function BulkImportMappingStep({
         throw new Error('CSV file is empty')
       }
 
-      const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''))
+      const headerLine = lines[0] ?? ''
+      const headers = headerLine.split(',').map((h) => h.trim().replace(/^"|"$/g, ''))
       setCsvColumns(headers)
 
       // Auto-detect mapping

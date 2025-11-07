@@ -42,7 +42,7 @@ export const ImageFile: Story = {
       name: 'screenshot.png',
       mimeType: 'image/png',
       url: '/files/screenshot.png',
-      thumbnail: 'https://via.placeholder.com/300x200',
+      thumbnailUrl: 'https://via.placeholder.com/300x200',
     },
   },
 }
