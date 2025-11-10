@@ -25,15 +25,23 @@ export declare class ChatService {
         title?: string | null;
         participantIds: string[];
     }): Promise<Chat>;
-    listMessages(userId: string, chatId: string, limit?: number, beforeId?: string): Promise<any>;
+    listMessages(userId: string, chatId: string, limit?: number, beforeId?: string): Promise<Array<Message & {
+        reactionsSummary: Array<{
+            emoji: string;
+            count: number;
+            userIds: string[];
+            hasCurrentUser: boolean;
+        }>;
+        readCount: number;
+    }>>;
     listMessagesCursor(userId: string, chatId: string, limit?: number, cursor?: string | null): Promise<{
-        items: any;
+        items: Message[];
         nextCursor: string | undefined;
         hasMore: boolean;
     }>;
     sendMessage(userId: string, dto: {
         chatId: string;
-        content: any;
+        content: unknown;
         delivery?: 'normal' | 'important' | 'urgent';
         rootMessageId?: string | null;
     }): Promise<Message>;
@@ -44,7 +52,7 @@ export declare class ChatService {
         success: boolean;
     }>;
     editMessage(userId: string, messageId: string, patch: {
-        content: any;
+        content: unknown;
     }): Promise<{
         success: boolean;
     }>;

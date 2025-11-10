@@ -5,6 +5,14 @@ import { FileEntity } from '../entities/file.entity';
 import { Task } from '../entities/task.entity';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
+type SearchHit = {
+    _id?: string | number;
+    id?: string | number;
+    _source?: {
+        id?: string | number;
+    };
+    [k: string]: unknown;
+};
 export declare class SearchService {
     private readonly messages;
     private readonly mails;
@@ -23,7 +31,7 @@ export declare class SearchService {
         enqueued: boolean;
     }>;
     searchCursor(entity: 'messages' | 'mail_messages' | 'files' | 'tasks', q: string, userId: string | undefined, limit?: number, cursor?: string | null): Promise<{
-        items: any[];
+        items: SearchHit[];
         nextCursor: string | undefined;
         hasMore: boolean;
     } | {
@@ -32,13 +40,17 @@ export declare class SearchService {
     }>;
     private idx;
     searchAll(q: string, userId?: string): Promise<{
-        results: any[];
+        results: {
+            index: string;
+            hits: SearchHit[];
+        }[];
     }>;
     private extractId;
     private filterAccessible;
     backfill(entity: 'messages' | 'mail_messages' | 'files' | 'tasks'): Promise<{
         success: boolean;
     }>;
-    indexDoc(index: string, id: string, body: any): Promise<boolean>;
+    indexDoc(index: string, id: string, body: Record<string, unknown>): Promise<boolean>;
     deleteDoc(index: string, id: string): Promise<boolean>;
 }
+export {};

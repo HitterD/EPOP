@@ -1,8 +1,21 @@
 export const APP_NAME = 'EPOP'
 export const APP_DESCRIPTION = 'Enterprise Collaboration Platform'
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api'
-export const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3000'
+const RAW_API_BASE = process.env.NEXT_PUBLIC_API_URL
+export const API_BASE_URL =
+  RAW_API_BASE && RAW_API_BASE.length > 0
+    ? RAW_API_BASE
+    : (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production'
+        ? `${window.location.protocol}//localhost:4000/api`
+        : '/api')
+
+const RAW_WS_URL = process.env.NEXT_PUBLIC_WS_URL
+export const WS_URL =
+  RAW_WS_URL && RAW_WS_URL.length > 0
+    ? RAW_WS_URL
+    : (typeof window !== 'undefined'
+        ? `${window.location.protocol}//${window.location.host}`
+        : 'http://localhost:3000')
 
 export const ROUTES = {
   HOME: '/',

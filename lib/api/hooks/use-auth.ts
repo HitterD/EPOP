@@ -30,11 +30,20 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
-      const response = await apiClient.post<AuthSession>('/auth/login', credentials)
-      if (!response.success || !response.data) {
-        throw new Error(response.error?.message || 'Login failed')
+      const loginResp = await apiClient.post('/auth/login', credentials)
+      if (!loginResp.success) {
+        throw new Error(loginResp.error?.message || 'Login failed')
       }
-      return response.data
+      const meResp = await apiClient.get<User>('/users/me')
+      if (!meResp.success || !meResp.data) {
+        throw new Error('Failed to load user after login')
+      }
+      const session: AuthSession = {
+        user: meResp.data,
+        // Approximate expiry (15m). Backend rotates via refresh cookie.
+        expiresAt: Date.now() + 15 * 60 * 1000,
+      }
+      return session
     },
     onSuccess: (session) => {
       setSession(session)
@@ -94,7 +103,7 @@ export function useForgotPassword() {
   return useMutation({
     mutationFn: async (email: string) => {
       const response = await apiClient.post<{ message: string }>(
-        '/auth/forgot-password',
+        '/auth/password/forgot',
         {
           email,
         },
@@ -120,7 +129,7 @@ export function useResetPassword() {
   return useMutation({
     mutationFn: async (data: ResetPasswordData) => {
       const response = await apiClient.post<{ message: string }>(
-        '/auth/reset-password',
+        '/auth/password/reset',
         data,
         withIdempotencyKey()
       )
@@ -143,7 +152,7 @@ export function useCurrentUser() {
   return useQuery({
     queryKey: ['currentUser'],
     queryFn: async () => {
-      const response = await apiClient.get<User>('/auth/me')
+      const response = await apiClient.get<User>('/users/me')
       if (!response.success || !response.data) {
         throw new Error('Failed to fetch user')
       }

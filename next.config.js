@@ -17,7 +17,7 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
+  swcMinify: false,
   eslint: {
     dirs: ['app', 'components', 'features', 'lib', 'types'],
     ignoreDuringBuilds: false,
@@ -54,6 +54,14 @@ const nextConfig = {
     }
     
     return config
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:4000/api/:path*',
+      },
+    ]
   },
 }
 

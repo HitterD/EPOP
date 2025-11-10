@@ -8,7 +8,6 @@ const inter = Inter({ subsets: ['latin'], display: 'swap' })
 export const metadata: Metadata = {
   title: 'EPOP - Enterprise Collaboration Platform',
   description: 'Microsoft Teams-style collaboration platform for enterprise',
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -38,7 +37,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body>
         <Providers>{children}</Providers>

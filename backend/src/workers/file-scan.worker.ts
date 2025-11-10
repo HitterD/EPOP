@@ -123,7 +123,11 @@ export class FileScanWorker implements OnModuleInit, OnModuleDestroy {
         // Expected: 'stream: OK' or 'stream: <VIRUS> FOUND'
         const r = response.trim()
         if (r.includes('FOUND')) {
-          const sig = r.split('FOUND')[0].split(':').pop()?.trim()
+          const splitFound = r.split('FOUND')
+          const beforeFound = splitFound[0] ?? ''
+          const parts = beforeFound.split(':')
+          const last = parts[parts.length - 1] ?? ''
+          const sig = last ? last.trim() : undefined
           resolve({ infected: true, signature: sig })
         } else if (r.includes('OK')) {
           resolve({ infected: false })

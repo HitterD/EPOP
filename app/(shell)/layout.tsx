@@ -14,7 +14,6 @@ import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { ErrorBoundary } from '@/components/system/ErrorBoundary'
 import ConnectionBanner from '@/components/system/ConnectionBanner'
 import { useResilientSocket } from '@/lib/socket/hooks/use-resilient-socket'
-import { Providers } from '@/components/providers/providers'
 import { SkipLinks } from '@/components/accessibility/skip-link'
 import { StatusAnnouncer } from '@/components/accessibility/aria-live'
 import type { ChatMessageEvent, DomainEvent, Notification, CursorPaginatedResponse } from '@/types'
@@ -88,40 +87,36 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
     },
   })
 
-  return (
-    <Providers>
-      {isLoading || !isAuthenticated ? (
-        <div className={`flex h-screen items-center justify-center ${inter.className}`}>
-          <div className="text-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-            <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
-          </div>
-        </div>
-      ) : (
-        <div className={`flex h-screen overflow-hidden bg-background ${inter.className}`}>
-          {/* FE-a11y-2: Skip navigation links */}
-          <SkipLinks />
-          
-          {/* FE-a11y-3: Status announcer for screen readers */}
-          <StatusAnnouncer />
-          
-          <ErrorBoundary fallback={<div className="p-3">Sidebar bermasalah.</div>}>
-            <LeftRail />
-          </ErrorBoundary>
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <ConnectionBanner />
-            <TopHeader />
-            <ErrorBoundary fallback={<div className="p-6">Konten gagal dimuat.</div>}>
-              <main id="main-content" className="flex-1 overflow-hidden" tabIndex={-1}>
-                {children}
-              </main>
-            </ErrorBoundary>
-            <Toaster richColors />
-          </div>
-          <CommandPalette />
-        </div>
-      )}
-    </Providers>
+  return isLoading || !isAuthenticated ? (
+    <div className={`flex h-screen items-center justify-center ${inter.className}`}>
+      <div className="text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  ) : (
+    <div className={`flex h-screen overflow-hidden bg-background ${inter.className}`}>
+      {/* FE-a11y-2: Skip navigation links */}
+      <SkipLinks />
+      
+      {/* FE-a11y-3: Status announcer for screen readers */}
+      <StatusAnnouncer />
+      
+      <ErrorBoundary fallback={<div className="p-3">Sidebar bermasalah.</div>}>
+        <LeftRail />
+      </ErrorBoundary>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <ConnectionBanner />
+        <TopHeader />
+        <ErrorBoundary fallback={<div className="p-6">Konten gagal dimuat.</div>}>
+          <main id="main-content" className="flex-1 overflow-hidden" tabIndex={-1}>
+            {children}
+          </main>
+        </ErrorBoundary>
+        <Toaster richColors />
+      </div>
+      <CommandPalette />
+    </div>
   )
 }
 

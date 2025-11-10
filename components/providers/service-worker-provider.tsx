@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect } from 'react'
-import { registerServiceWorker } from '@/lib/service-worker/register'
+import { registerServiceWorker, unregisterServiceWorker } from '@/lib/service-worker/register'
 import { toast } from 'sonner'
 
 export function ServiceWorkerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Register service worker on mount
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    // In production: register SW. In dev: ensure any existing SW is unregistered.
+    if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       registerServiceWorker()
         .then((registration) => {
           if (registration) {
@@ -36,6 +36,9 @@ export function ServiceWorkerProvider({ children }: { children: React.ReactNode 
         .catch((error) => {
           console.error('Service Worker registration failed:', error)
         })
+    } else if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      // Dev: try to unregister to avoid stale precache errors
+      unregisterServiceWorker().catch(() => {})
     }
   }, [])
 

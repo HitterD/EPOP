@@ -12,12 +12,13 @@ const typeorm_1 = require("@nestjs/typeorm");
 const mail_message_entity_1 = require("../entities/mail-message.entity");
 const compose_service_1 = require("./compose.service");
 const compose_controller_1 = require("./compose.controller");
+const events_module_1 = require("../events/events.module");
 let ComposeModule = class ComposeModule {
 };
 exports.ComposeModule = ComposeModule;
 exports.ComposeModule = ComposeModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([mail_message_entity_1.MailMessage])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([mail_message_entity_1.MailMessage]), events_module_1.EventsModule],
         providers: [compose_service_1.ComposeService],
         controllers: [compose_controller_1.ComposeController],
     })

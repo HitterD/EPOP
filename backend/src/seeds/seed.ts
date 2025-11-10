@@ -15,6 +15,7 @@ import * as argon2 from 'argon2'
 
 async function run() {
   await AppDataSource.initialize()
+  await AppDataSource.runMigrations()
   const users = AppDataSource.getRepository(User)
   const orgs = AppDataSource.getRepository(OrgUnit)
   const projects = AppDataSource.getRepository(Project)

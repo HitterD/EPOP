@@ -72,16 +72,18 @@ let SearchService = SearchService_1 = class SearchService {
         this.client.interceptors.response.use(undefined, async (error) => {
             const cfg = error.config || {};
             cfg.__retries = (cfg.__retries ?? 0) + 1;
-            const retriable = (error.code === 'ECONNRESET' ||
-                error.code === 'ETIMEDOUT' ||
-                error.code === 'ESOCKETTIMEDOUT' ||
-                error.code === 'EAI_AGAIN' ||
-                (typeof error.message === 'string' && error.message.toLowerCase().includes('timeout')));
+            const msg = typeof error.message === 'string' ? error.message : '';
+            const code = error.code;
+            const retriable = (code === 'ECONNRESET' ||
+                code === 'ETIMEDOUT' ||
+                code === 'ESOCKETTIMEDOUT' ||
+                code === 'EAI_AGAIN' ||
+                msg.toLowerCase().includes('timeout'));
             if (cfg.__retries <= 5 && retriable) {
                 const base = 300;
                 const delay = Math.max(100, base * Math.pow(2, cfg.__retries));
                 await new Promise((r) => setTimeout(r, delay));
-                return this.client(cfg);
+                return this.client.request(cfg);
             }
             return Promise.reject(error);
         });
@@ -92,7 +94,8 @@ let SearchService = SearchService_1 = class SearchService {
             return { enqueued: true };
         }
         catch (e) {
-            this.logger.warn(`enqueue backfill failed: ${String(e?.message || e)}`);
+            const msg = e instanceof Error ? e.message : String(e);
+            this.logger.warn(`enqueue backfill failed: ${msg}`);
             return { enqueued: false };
         }
     }
@@ -118,7 +121,8 @@ let SearchService = SearchService_1 = class SearchService {
             return res;
         }
         catch (e) {
-            this.logger.warn(`search cursor failed for ${index}: ${String(e?.message || e)}`);
+            const msg = e instanceof Error ? e.message : String(e);
+            this.logger.warn(`search cursor failed for ${index}: ${msg}`);
             endTimer();
             return { items: [], hasMore: false };
         }
@@ -140,7 +144,8 @@ let SearchService = SearchService_1 = class SearchService {
                 results.push({ index, hits });
             }
             catch (e) {
-                this.logger.warn(`search failed for ${index}: ${String(e?.message || e)}`);
+                const msg = e instanceof Error ? e.message : String(e);
+                this.logger.warn(`search failed for ${index}: ${msg}`);
             }
         }
         const res = { results };
@@ -185,7 +190,8 @@ let SearchService = SearchService_1 = class SearchService {
             }
         }
         catch (e) {
-            this.logger.warn(`permission filter failed for ${index}: ${String(e?.message || e)}`);
+            const msg = e instanceof Error ? e.message : String(e);
+            this.logger.warn(`permission filter failed for ${index}: ${msg}`);
         }
         return set;
     }
@@ -195,7 +201,7 @@ let SearchService = SearchService_1 = class SearchService {
             for (const m of rows) {
                 await this.indexDoc(this.idx('messages'), m.id, {
                     chatId: m.chat?.id,
-                    senderId: m.sender?.id,
+                    senderId: m.sender?.id ?? null,
                     delivery: m.delivery,
                     createdAt: m.createdAt,
                     text: JSON.stringify(m.contentJson),
@@ -247,8 +253,9 @@ let SearchService = SearchService_1 = class SearchService {
         try {
             await this.client.post(`/api/${index}/_doc/${id}`, body);
             try {
-                if (body && body.createdAt) {
-                    const ts = new Date(body.createdAt).getTime();
+                const createdAt = body?.createdAt;
+                if (createdAt != null) {
+                    const ts = new Date(createdAt).getTime();
                     if (isFinite(ts)) {
                         const lagSec = Math.max(0, (Date.now() - ts) / 1000);
                         this.indexLag.observe(lagSec);
@@ -259,7 +266,8 @@ let SearchService = SearchService_1 = class SearchService {
             return true;
         }
         catch (e) {
-            this.logger.warn(`index ${index}/${id} failed: ${String(e?.message || e)}`);
+            const msg = e instanceof Error ? e.message : String(e);
+            this.logger.warn(`index ${index}/${id} failed: ${msg}`);
             return false;
         }
     }
@@ -269,7 +277,8 @@ let SearchService = SearchService_1 = class SearchService {
             return true;
         }
         catch (e) {
-            this.logger.warn(`delete ${index}/${id} failed: ${String(e?.message || e)}`);
+            const msg = e instanceof Error ? e.message : String(e);
+            this.logger.warn(`delete ${index}/${id} failed: ${msg}`);
             return false;
         }
     }

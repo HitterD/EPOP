@@ -118,7 +118,7 @@ let ChatService = class ChatService {
                 const val = { reac: byMsgReac.get(String(id)) || [], readCount: byMsgRead.get(String(id)) || 0 };
                 result.set(String(id), val);
                 try {
-                    pipe.set(`msgagg:${id}`, JSON.stringify(val), { EX: 60 });
+                    pipe.set(`msgagg:${id}`, JSON.stringify(val), 'EX', 60);
                 }
                 catch { }
             }
@@ -161,7 +161,7 @@ let ChatService = class ChatService {
         const rows = await qb.getMany();
         const items = rows.reverse();
         if (!items.length)
-            return items;
+            return [];
         const ids = items.map((m) => m.id);
         const agg = await this.loadAggregates(ids);
         return items.map((m) => {
@@ -227,14 +227,20 @@ let ChatService = class ChatService {
         let contentSan = dto.content;
         try {
             if (contentSan && typeof contentSan === 'object' && typeof contentSan.html === 'string') {
-                contentSan = { ...contentSan, html: (0, sanitize_html_1.sanitizeHtml)(contentSan.html) };
+                contentSan = { ...contentSan, html: (0, sanitize_html_1.sanitizeHtml)(String(contentSan.html)) };
             }
             else if (typeof contentSan === 'string') {
                 contentSan = (0, sanitize_html_1.sanitizeHtml)(contentSan);
             }
         }
         catch { }
-        const msg = await this.messages.save(this.messages.create({ chat: { id: dto.chatId }, sender: { id: userId }, contentJson: contentSan, delivery: dto.delivery ?? 'normal', rootMessage: dto.rootMessageId ? { id: dto.rootMessageId } : null }));
+        const msg = await this.messages.save(this.messages.create({
+            chat: { id: dto.chatId },
+            sender: { id: userId },
+            contentJson: contentSan,
+            delivery: dto.delivery ?? 'normal',
+            rootMessage: dto.rootMessageId ? { id: dto.rootMessageId } : null,
+        }));
         await this.outbox.append({ name: 'chat.message.created', aggregateType: 'message', aggregateId: msg.id, userId, payload: { chatId: dto.chatId, messageId: msg.id, delivery: msg.delivery } });
         if (msg.delivery === 'urgent') {
             await this.outbox.append({ name: 'user.presence.updated', aggregateType: 'user', aggregateId: userId, userId, payload: { notify: 'urgent', chatId: dto.chatId, messageId: msg.id } });
@@ -273,7 +279,7 @@ let ChatService = class ChatService {
         let contentSan = patch.content;
         try {
             if (contentSan && typeof contentSan === 'object' && typeof contentSan.html === 'string') {
-                contentSan = { ...contentSan, html: (0, sanitize_html_1.sanitizeHtml)(contentSan.html) };
+                contentSan = { ...contentSan, html: (0, sanitize_html_1.sanitizeHtml)(String(contentSan.html)) };
             }
             else if (typeof contentSan === 'string') {
                 contentSan = (0, sanitize_html_1.sanitizeHtml)(contentSan);

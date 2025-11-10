@@ -14,14 +14,22 @@ const users_controller_1 = require("./users.controller");
 const user_entity_1 = require("../entities/user.entity");
 const org_unit_entity_1 = require("../entities/org-unit.entity");
 const events_module_1 = require("../events/events.module");
+const me_controller_1 = require("./me.controller");
+const project_entity_1 = require("../entities/project.entity");
+const project_member_entity_1 = require("../entities/project-member.entity");
+const task_entity_1 = require("../entities/task.entity");
+const calendar_event_entity_1 = require("../entities/calendar-event.entity");
 let UsersModule = class UsersModule {
 };
 exports.UsersModule = UsersModule;
 exports.UsersModule = UsersModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([user_entity_1.User, org_unit_entity_1.OrgUnit]), events_module_1.EventsModule],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([user_entity_1.User, org_unit_entity_1.OrgUnit, project_entity_1.Project, project_member_entity_1.ProjectMember, task_entity_1.Task, calendar_event_entity_1.CalendarEvent]),
+            events_module_1.EventsModule,
+        ],
         providers: [users_service_1.UsersService],
-        controllers: [users_controller_1.UsersController],
+        controllers: [users_controller_1.UsersController, me_controller_1.MeController],
         exports: [users_service_1.UsersService],
     })
 ], UsersModule);

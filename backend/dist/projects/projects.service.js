@@ -180,20 +180,14 @@ let ProjectsService = class ProjectsService {
         const member = await this.members.findOne({ where: { projectId, userId } });
         if (!member)
             throw new common_1.ForbiddenException();
-        const where = {
-            predecessor: { project: { id: projectId } },
-            successor: { project: { id: projectId } },
-        };
-        if (taskId) {
-            where["predecessor"] = [{ project: { id: projectId }, id: taskId }, { project: { id: projectId } }];
-        }
+        const baseWhere = { predecessor: { project: { id: projectId } }, successor: { project: { id: projectId } } };
         const edges = await this.deps.find({
             where: taskId
                 ? [
                     { predecessor: { id: taskId }, successor: { project: { id: projectId } } },
                     { predecessor: { project: { id: projectId } }, successor: { id: taskId } },
                 ]
-                : where,
+                : baseWhere,
             relations: { predecessor: true, successor: true },
             order: { id: 'ASC' },
         });

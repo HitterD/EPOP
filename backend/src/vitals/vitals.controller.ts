@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common'
+import { Body, Controller, HttpCode, Post, Req, UsePipes, ValidationPipe } from '@nestjs/common'
 import { ApiDefaultResponse, ApiTags } from '@nestjs/swagger'
 import { Throttle } from '@nestjs/throttler'
 import { ErrorResponse } from '../common/dto/error.dto'
@@ -13,6 +13,7 @@ export class VitalsController {
 
   // Accept vitals anonymously, with light rate-limit
   @Post()
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: false, transform: true, forbidUnknownValues: false }))
   @HttpCode(200)
   @Throttle({ default: { limit: 10, ttl: 1 } })
   async record(@Req() req: any, @Body() body: VitalsDto) {

@@ -51,13 +51,17 @@ export function formatDate(date: string | Date, format: 'short' | 'long' | 'rela
   })
 }
 
-export function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((n) => n[0])
+export function getInitials(name?: string | null): string {
+  const source = (name || '').trim()
+  if (!source) return '?'
+  const parts = source.split(/\s+/).filter(Boolean)
+  const initials = parts
+    .slice(0, 2)
+    .map((n) => (n && n.length > 0 ? n[0] : ''))
     .join('')
     .toUpperCase()
     .slice(0, 2)
+  return initials || '?'
 }
 
 export function debounce<T extends (...args: unknown[]) => unknown>(

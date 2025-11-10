@@ -160,10 +160,14 @@ function parseIcsBasic(ics: string): Array<{ summary?: string; location?: string
       else if (line.startsWith('LOCATION:')) cur.location = line.substring(9)
       else if (line.startsWith('DTSTART')) {
         const dt = line.split(':')[1]
-        cur.start = parseIcsDate(dt)
+        if (dt) {
+          cur.start = parseIcsDate(dt)
+        }
       } else if (line.startsWith('DTEND')) {
         const dt = line.split(':')[1]
-        cur.end = parseIcsDate(dt)
+        if (dt) {
+          cur.end = parseIcsDate(dt)
+        }
       }
     }
   }

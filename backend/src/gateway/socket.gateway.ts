@@ -18,8 +18,10 @@ export class SocketGateway implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     // Configure Socket.IO to use Redis adapter for horizontal scaling
-    if (this.server) {
-      this.server.adapter(createAdapter(this.pub, this.sub))
+    if (this.server && typeof (this.server as any).adapter === 'function') {
+      ;(this.server as any).adapter(createAdapter(this.pub, this.sub))
+    } else {
+      this.logger.warn('Socket adapter not configurable; running without Redis adapter')
     }
     await this.sub.psubscribe('epop.*')
     this.sub.on('pmessage', (_pattern, channel, message) => {

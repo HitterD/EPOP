@@ -3,7 +3,9 @@ import { ConfigService } from '@nestjs/config'
 import { Worker, Queue } from 'bullmq'
 import { REDIS_PUB } from '../redis/redis.module'
 import Redis from 'ioredis'
-import * as webPush from 'web-push'
+// Use require to avoid type issues in ts-node dev
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const webPush = require('web-push')
 import { DEAD_QUEUE } from '../queues/queues.module'
 
 @Injectable()

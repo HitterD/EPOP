@@ -118,7 +118,8 @@ let FilesService = class FilesService {
                     catch { }
                     file.s3Key = destKey;
                     try {
-                        file.s3VersionId = resp?.VersionId ?? file.s3VersionId ?? null;
+                        const versionId = resp?.VersionId;
+                        file.s3VersionId = versionId ?? file.s3VersionId ?? null;
                     }
                     catch { }
                     await this.files.save(file);
@@ -157,11 +158,11 @@ let FilesService = class FilesService {
         return { success: true };
     }
     async listMineCursor(userId, limit = 20, cursor = null) {
-        const where = { ownerId: userId };
         const decoded = (0, cursor_1.decodeCursor)(cursor);
-        if (decoded?.id)
-            where.id = (0, typeorm_2.LessThan)(decoded.id);
         const take = Math.max(1, Math.min(100, Number(limit))) + 1;
+        const where = decoded?.id
+            ? { ownerId: userId, id: (0, typeorm_2.LessThan)(decoded.id) }
+            : { ownerId: userId };
         const rows = await this.files.find({ where, order: { id: 'DESC' }, take });
         const items = rows.slice(0, take - 1).reverse();
         const hasMore = rows.length === take;

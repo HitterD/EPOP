@@ -2,18 +2,46 @@
 
 A Microsoft Teams-style collaboration platform built with Next.js 14, featuring real-time chat, project management, file sharing, and more.
 
+## Current Status
+
+- MVP production-ready frontend as of November 6, 2025.
+- All FE tasks FE-1 → FE-19 implemented (Auth, Chat, Projects, Files, Search, Notifications, Directory).
+- Real-time infra, idempotency, ETag/SWR, tracing, PWA, accessibility, and i18n complete.
+- See `READY_FOR_DEPLOYMENT.md`, `FINAL_IMPLEMENTATION_SUMMARY.md`, `STATUS_ALL_TASKS_COMPLETE.md`.
+
+## Executive Summary
+
+- **Production-ready frontend (MVP)** with major modules wired and polished UX.
+- **Infra & quality**: httpOnly auth, idempotent mutations, ETag/SWR caching, X-Request-Id tracing, PWA SW, WCAG 2.1 AA, i18n (en, id).
+- **Features implemented**: Chat (optimistic, reactions, threads), Projects (Kanban DnD + real-time), Files (presigned upload + preview), Search (Cmd/Ctrl+K, filters, highlighting), Notifications (center + preferences + Web Push), Directory (drag-tree, bulk import, audit).
+- **Testing & tooling**: Playwright E2E, Jest/RTL, visual tests, Lighthouse CI, bundle analyzer; see `TESTING_GUIDE.md`.
+- **Deployment-ready**: Scripts and envs in README; details in `READY_FOR_DEPLOYMENT.md` and `PRODUCTION_READINESS.md`.
+- **Backend**: API contracts defined; mock data used where needed. See “Backend Integration & API Contracts (Summary)” below.
+
+## Screenshots
+
+### Chat
+
+![Chat](./public/screenshots/chat.gif)
+
+### Projects
+
+![Projects](./public/screenshots/projects.gif)
+
+_Store assets in `public/screenshots/` (supports .gif/.png/.jpg)._
+
 ## Features
 
-- **Real-time Chat** - WebSocket-powered messaging with threads, reactions, and read receipts
-- **Mail-like Compose** - Email-style messaging with folders (Received, Sent, Deleted)
-- **Project Management** - Kanban boards, Gantt charts, and task tracking with SVAR components
-- **File Management** - Upload, preview, and organize files with context linking
-- **Global Search** - Unified search across messages, projects, users, and files
-- **Directory** - Admin-managed organizational tree with drag-drop user management
-- **Notifications** - In-app notifications and Web Push support
-- **PWA Support** - Installable progressive web app with offline capabilities
-- **Presence System** - Real-time user status with phone extension badges
-- **Responsive Design** - Modern UI with dark/light theme support
+- **Real-time Chat** - Optimistic UI, threads, reactions, read receipts, link preview
+- **Projects & Planner** - Kanban drag-and-drop, real-time sync, priority and progress
+- **Files Management** - Drag-drop presigned uploads, progress, preview modal, grid/list
+- **Global Search** - Cmd/Ctrl+K palette, tabs, filters, text highlighting
+- **Notifications** - Bell + center, preferences, Do Not Disturb, Web Push
+- **Directory Admin** - Drag-drop org tree, bulk import, audit trail
+- **Compose/Mail** - Mail-style compose and folder operations; send-as-mail from chat
+- **PWA Support** - Offline-ready with service worker
+- **Presence & Status** - Real-time user presence with badges
+- **Accessibility & i18n** - WCAG 2.1 AA, next-intl (en, id)
 
 ## Tech Stack
 
@@ -133,8 +161,13 @@ EPop/
 - `npm run type-check` - Run TypeScript type checking
 - `npm test` - Run Jest tests
 - `npm run test:e2e` - Run Playwright E2E tests
+- `npm run test:visual` - Visual regression tests (Playwright visual)
+- `npm run test:visual:update` - Update visual snapshots
+- `npm run test:visual:ui` - Visual tests UI mode
 - `npm run storybook` - Start Storybook
 - `npm run build-storybook` - Build Storybook
+- `npm run analyze` - Analyze production bundle
+- `npm run ci:lighthouse` - Run Lighthouse CI
 
 ## Architecture
 
@@ -159,10 +192,10 @@ EPop/
 - **TanStack Query** for server state and caching
 - **Immer** middleware for immutable updates
 
-### File Upload Flow (Future MinIO)
+### File Upload Flow (Presigned MinIO/S3)
 
 1. Client requests pre-signed upload URL
-2. Client uploads directly to MinIO
+2. Client uploads directly to S3-compatible storage (e.g., MinIO)
 3. Client confirms upload with file metadata
 4. File appears in Files area with context
 
@@ -171,6 +204,7 @@ EPop/
 Detailed documentation for each feature:
 
 - [Shell Architecture](docs/frontend/SHELL.md)
+- [Auth Feature](docs/frontend/AUTH.md)
 - [Chat Feature](docs/frontend/CHAT.md)
 - [Compose/Mail Feature](docs/frontend/COMPOSE.md)
 - [Projects & Planner](docs/frontend/PROJECTS.md)
@@ -178,6 +212,29 @@ Detailed documentation for each feature:
 - [Global Search](docs/frontend/SEARCH.md)
 - [Directory Management](docs/frontend/DIRECTORY.md)
 - [Notifications](docs/frontend/NOTIFICATIONS.md)
+
+## Project Docs
+
+- [Component Index](COMPONENT_INDEX.md)
+- [Frontend Implementation Summary](FRONTEND_IMPLEMENTATION_SUMMARY.md)
+- [Ready for Deployment](READY_FOR_DEPLOYMENT.md)
+- [Production Readiness](PRODUCTION_READINESS.md)
+- [Testing Guide](TESTING_GUIDE.md)
+- [Backend Docs](docs/backend/)
+
+## Backend Integration & API Contracts (Summary)
+
+- **Status**: Backend integration pending in some areas; API contracts are defined. Frontend uses mock data where needed and is ready for live endpoints.
+- **Required Endpoints**:
+  - Auth: `/auth/refresh`, `/auth/sessions`, `/auth/sessions/:id`
+  - Files: `/files/presign`, `/files/:id/confirm`
+  - Directory: `/directory/import/dry-run`, `/directory/import/commit`, `/directory/audit`
+  - Search: `/search`
+  - Notifications: `/notifications/preferences`, `/notifications/web-push/subscribe`, `/notifications/web-push/unsubscribe`
+  - Errors: `/errors/report`
+- **Real-time Events**: Socket.IO events follow `domain:entity_action` (e.g., `chat:message_created`, `project:task_moved`).
+- **Headers & Caching**: `X-Request-Id` tracing, `Idempotency-Key` on mutations, `ETag`/`If-None-Match` for GET caching.
+- **More Details**: See feature docs in `docs/frontend/` and backend guides in `docs/backend/`.
 
 ## Keyboard Shortcuts
 
@@ -202,6 +259,8 @@ npm test
 npm run test:e2e
 ```
 
+See `TESTING_GUIDE.md` for strategy, setup, and examples.
+
 ### Test Coverage
 - Authentication flow
 - Real-time chat messaging
@@ -224,23 +283,24 @@ Required for production:
 - `JWT_SECRET` - Strong secret key
 - `JWT_REFRESH_SECRET` - Refresh token secret
 - `NEXT_PUBLIC_APP_URL` - Production URL
-- Database connection (when PostgreSQL is integrated)
-- MinIO/S3 credentials (for file storage)
+- `NEXT_PUBLIC_API_URL` - API base URL
+- `NEXT_PUBLIC_WS_URL` - Socket base URL
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` - Web Push public key
+- Database connection (PostgreSQL)
+- Object storage credentials (MinIO/S3)
 - SMTP settings (for email notifications)
-- VAPID keys (for Web Push)
 
 ## Future Enhancements
 
-- [ ] PostgreSQL database integration
-- [ ] MinIO/Synology file storage
-- [ ] ZincSearch full-text search
-- [ ] Email notifications via SMTP
+- [ ] PostgreSQL/Prisma integration
+- [ ] MinIO/S3 file storage (presigned flows)
+- [ ] ZincSearch/OpenSearch full-text search
+- [ ] SVAR DataGrid and Gantt views
+- [ ] E2E and unit test coverage
 - [ ] Calendar integration
 - [ ] Video/audio calls
-- [ ] Mobile apps (React Native)
-- [ ] Advanced analytics dashboard
-- [ ] Workflow automation
-- [ ] Third-party integrations
+- [ ] Analytics dashboard
+- [ ] Monitoring, alerting, CI/CD
 
 ## Contributing
 

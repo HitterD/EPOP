@@ -34,8 +34,12 @@ let SocketGateway = SocketGateway_1 = class SocketGateway {
         this.pub = pub;
     }
     async onModuleInit() {
-        if (this.server) {
+        if (this.server && typeof this.server.adapter === 'function') {
+            ;
             this.server.adapter((0, redis_adapter_1.createAdapter)(this.pub, this.sub));
+        }
+        else {
+            this.logger.warn('Socket adapter not configurable; running without Redis adapter');
         }
         await this.sub.psubscribe('epop.*');
         this.sub.on('pmessage', (_pattern, channel, message) => {

@@ -1,11 +1,20 @@
 import { Module, OnModuleDestroy } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
+import { validate } from '../config/env.validation'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { typeOrmRootAsyncOptions } from '../database/typeorm.config'
 import { Message } from '../entities/message.entity'
+import { Chat } from '../entities/chat.entity'
+import { MessageReaction } from '../entities/message-reaction.entity'
+import { MessageRead } from '../entities/message-read.entity'
+import { ChatParticipant } from '../entities/chat-participant.entity'
 import { MailMessage } from '../entities/mail-message.entity'
 import { FileEntity } from '../entities/file.entity'
 import { Task } from '../entities/task.entity'
+import { Project } from '../entities/project.entity'
+import { TaskBucket } from '../entities/task-bucket.entity'
+import { TaskComment } from '../entities/task-comment.entity'
+import { ProjectMember } from '../entities/project-member.entity'
 import { EmailWorkerService } from './email.worker'
 import { SearchWorkerService } from './search.worker'
 import { SearchService } from '../search/search.service'
@@ -23,12 +32,37 @@ import { MailerModule } from '../mailer/mailer.module'
 import { AnalyticsAggregatorWorker } from './analytics-aggregator.worker'
 import { WorkflowExecutorWorker } from './workflow-executor.worker'
 import { TaskAssignee } from '../entities/task-assignee.entity'
+import { AnalyticsDaily } from '../entities/analytics-daily.entity'
+import { Workflow } from '../entities/workflow.entity'
+import { WorkflowRun } from '../entities/workflow-run.entity'
+import { OrgUnit } from '../entities/org-unit.entity'
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate }),
     TypeOrmModule.forRootAsync(typeOrmRootAsyncOptions),
-    TypeOrmModule.forFeature([Message, MailMessage, FileEntity, Task, TaskAssignee, CalendarEvent, NotificationPreferencesEntity, User]),
+    TypeOrmModule.forFeature([
+      Message,
+      Chat,
+      ChatParticipant,
+      MessageReaction,
+      MessageRead,
+      MailMessage,
+      FileEntity,
+      Project,
+      ProjectMember,
+      TaskBucket,
+      Task,
+      TaskAssignee,
+      TaskComment,
+      CalendarEvent,
+      NotificationPreferencesEntity,
+      User,
+      OrgUnit,
+      AnalyticsDaily,
+      Workflow,
+      WorkflowRun,
+    ]),
     QueuesModule,
     RedisModule,
     FilesModule,

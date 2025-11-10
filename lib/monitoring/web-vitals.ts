@@ -4,6 +4,7 @@
  */
 
 import { onCLS, onFCP, onINP, onLCP, onTTFB, Metric } from 'web-vitals'
+import { API_BASE_URL } from '@/lib/constants'
 
 interface VitalsPayload {
   name: string
@@ -37,26 +38,20 @@ async function sendToAnalytics(metric: Metric) {
     userAgent: navigator.userAgent,
   }
 
-  // Send to backend (fire and forget)
+  // Send to backend (fire and forget) — use fetch with JSON content type
   try {
-    // Use sendBeacon for reliability (works even when page is closing)
-    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
-    const sent = navigator.sendBeacon('/api/v1/vitals', blob)
-    
-    if (!sent) {
-      // Fallback to fetch if sendBeacon fails
-      fetch('/api/v1/vitals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        keepalive: true, // Keep request alive even if page closes
-      }).catch(() => {
-        // Silently fail - don't impact user experience
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('Failed to send Web Vitals:', metric.name)
-        }
-      })
-    }
+    const endpoint = `${API_BASE_URL.replace(/\/$/, '')}/vitals`
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+      credentials: 'include',
+    }).catch(() => {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Failed to send Web Vitals:', metric.name)
+      }
+    })
   } catch (error) {
     // Silently fail
     if (process.env.NODE_ENV === 'development') {
@@ -165,11 +160,13 @@ export function reportCustomMetric(name: string, value: number, metadata?: Recor
   }
 
   try {
-    fetch('/api/v1/vitals', {
+    const endpoint = `${API_BASE_URL.replace(/\/$/, '')}/vitals`
+    fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       keepalive: true,
+      credentials: 'include',
     }).catch(() => {
       // Silently fail
     })

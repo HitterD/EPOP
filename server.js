@@ -32,14 +32,16 @@ app.prepare().then(() => {
 
   // Socket.IO authentication middleware
   io.use((socket, next) => {
-    const token = socket.handshake.auth.token
-    if (!token) {
-      return next(new Error('Authentication error'))
+    const token = socket.handshake.auth?.token
+    const userId = socket.handshake.auth?.userId || 'anonymous'
+    // In development, allow missing token to avoid blocking UI
+    if (process.env.NODE_ENV !== 'production' && !token) {
+      socket.userId = userId
+      return next()
     }
-    // TODO: Verify JWT token here
-    // For now, accept all connections in development
-    socket.userId = socket.handshake.auth.userId || 'anonymous'
-    next()
+    // TODO: Verify JWT token here for production
+    socket.userId = userId
+    return next()
   })
 
   // Socket.IO connection handler

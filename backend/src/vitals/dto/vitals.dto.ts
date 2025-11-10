@@ -28,7 +28,7 @@ export class VitalsDto {
   @MaxLength(20)
   navigationType?: string
 
-  @IsUrl({ require_protocol: true })
+  @IsUrl({ require_protocol: true, require_tld: false })
   @MaxLength(2000)
   url!: string
 
