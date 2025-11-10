@@ -13,14 +13,20 @@
 │ 🏢 ACME Corporation                │
 │   ▼ 👥 Engineering (45)            │
 │      ▼ 👥 Frontend Team (12)       │
-│         👤 Alice Chen              │
-│         👤 Bob Smith               │
+│         👤 Alice Chen [5555]       │
+│         👤 Bob Smith [5556]        │
 │      ▶ 👥 Backend Team (18)        │
 │      ▶ 👥 DevOps Team (15)         │
 │   ▶ 👥 Product (20)                │
 │   ▶ 👥 Design (8)                  │
 └────────────────────────────────────┘
 ```
+
+**Extension Display:**
+- Show extension number in a badge next to user name: `[XXXX]`
+- Style: Small badge with muted background (e.g., `bg-muted text-muted-foreground`)
+- Position: Right after the user name with small gap
+- Example: `Alice Chen [5555]`
 
 **Node Types:**
 - **Company:** Root, always expanded
