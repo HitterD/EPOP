@@ -11,9 +11,10 @@ interface VirtualMessageStreamProps {
   messages: Message[]
   chatId: string
   onOpenThread?: (message: Message) => void
+  lastConnectedAt?: number
 }
 
-export function VirtualMessageStream({ messages, chatId, onOpenThread }: VirtualMessageStreamProps) {
+export function VirtualMessageStream({ messages, chatId, onOpenThread, lastConnectedAt }: VirtualMessageStreamProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [height, setHeight] = useState(400)
   const [width, setWidth] = useState(600)
@@ -37,8 +38,19 @@ export function VirtualMessageStream({ messages, chatId, onOpenThread }: Virtual
     const m = messages[index]
     if (!m) return null
     const isOwn = m.senderId === me?.id
+    const createdMs = new Date(m.createdAt || m.timestamp).getTime()
+    const prev = index > 0 ? messages[index - 1] : undefined
+    const prevMs = prev ? new Date(prev.createdAt || prev.timestamp).getTime() : undefined
+    const isFirstAfterReconnect = !!lastConnectedAt && createdMs > lastConnectedAt && (!prevMs || prevMs <= lastConnectedAt)
     return (
       <div style={style} data-testid="message-bubble">
+        {isFirstAfterReconnect && (
+          <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-wide text-primary/70">
+            <span className="h-px w-3 bg-primary/40" />
+            New since reconnect
+            <span className="h-px flex-1 bg-primary/40" />
+          </div>
+        )}
         <MessageBubbleEnhanced
           message={m}
           isOwn={!!isOwn}

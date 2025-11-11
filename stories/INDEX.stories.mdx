@@ -1,0 +1,210 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="EPop Design System" />
+
+# EPop Design System
+
+Welcome to the EPop component library. This Storybook contains all UI components with complete documentation, interactive examples, and accessibility tests.
+
+## 📦 Modules
+
+### 1. Chat & Presence
+Real-time messaging with presence indicators, typing status, and connection management.
+
+**Components:**
+- PresenceBadge
+- TypingIndicator  
+- ReconnectBanner
+- ChatList
+- ThreadView
+- MessageComposer
+
+### 2. Mail Compose & Folders
+Email client with rich compose, folder management, and bulk operations.
+
+**Components:**
+- MailSidebar
+- MailList
+- MailComposer
+- RecipientInput
+- AttachmentChip
+- BulkActionBar
+
+### 3. Projects (Kanban/Gantt/Table)
+Project management with multiple view modes and task tracking.
+
+**Components:**
+- ProjectViewSwitcher
+- KanbanBoard
+- GanttChart
+- ProjectTable
+- TaskDetailModal
+- FilterBar
+
+### 4. Files Upload & Preview
+File management with drag-drop upload, previews, and folder organization.
+
+**Components:**
+- FileUploadZone
+- FileUploadQueue
+- FileList
+- FilePreviewModal
+- FolderTree
+- StorageQuota
+
+### 5. Global Search
+Command palette with multi-scope search and recent history.
+
+**Components:**
+- SearchCommandPalette
+- ScopeFilter
+- SearchResultItem
+- RecentSearches
+
+### 6. Directory & Admin
+User directory and administrative tools.
+
+**Components:**
+- OrganizationTree
+- UserCard
+- UserListView
+- AdminPanel
+
+### 7. Notifications & PWA
+Notification center and progressive web app features.
+
+**Components:**
+- NotificationCenter
+- NotificationItem
+- NotificationBadge
+- InstallPrompt
+- OfflineBanner
+- ServiceWorkerUpdate
+
+## 🎨 Design Tokens
+
+### Foundation Utilities (New! ✨)
+**Location:** `styles/` directory
+
+- **tokens.ts** - Spacing, z-index, durations, performance targets, retry config
+- **states.ts** - 5-state taxonomy (idle|loading|optimistic|success|error) + RetryManager
+- **i18n.ts** - i18n/RTL utilities + CJK/Thai tokenization
+- **a11y.ts** - ARIA helpers + keyboard nav + focus management
+
+### Colors
+- **Primary:** Blue (#3b82f6)
+- **Secondary:** Slate
+- **Destructive:** Red
+- **Success:** Green
+- **Warning:** Yellow
+
+### Spacing Scale
+- xs: 0.25rem (4px)
+- sm: 0.5rem (8px)
+- md: 1rem (16px)
+- lg: 1.5rem (24px)
+- xl: 2rem (32px)
+
+### Animation Durations (ms)
+- instant: 0
+- fast: 150
+- normal: 300
+- slow: 500
+- slower: 700
+- slowest: 1000
+
+### Performance Targets (P95)
+- TTI: 3500ms
+- FCP: 1800ms
+- LCP: 2500ms
+- CLS: 0.1
+- FID: 100ms
+- TBT: 200ms
+
+### Z-Index Scale
+- dropdown: 1000
+- sticky: 1020
+- fixed: 1030
+- modal-backdrop: 1040
+- modal: 1050
+- popover: 1060
+- tooltip: 1070
+
+## ♿ Accessibility
+
+All components follow WCAG 2.1 AA standards:
+- ✅ Proper ARIA roles and labels
+- ✅ Keyboard navigation (Tab, Arrow keys, Enter, Escape)
+- ✅ Focus management
+- ✅ Screen reader announcements
+- ✅ Color contrast compliance
+- ✅ Reduced motion support
+
+## 🧪 Testing
+
+Every component includes:
+- **Unit Tests:** Jest + React Testing Library
+- **Accessibility Tests:** jest-axe
+- **Visual Regression:** Storybook snapshots
+- **E2E Tests:** Playwright (selected flows)
+
+## 🚀 Getting Started
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start Storybook
+pnpm storybook
+
+# Run tests
+pnpm test
+
+# Build for production
+pnpm build
+```
+
+## 📊 Traceability Matrix
+
+### Spec → Components → Stories → Tests
+
+| Spec | Component | Story | A11y Test | Status |
+|------|-----------|-------|-----------|--------|
+| **UI-SPEC-CHAT-PRESENCE.md** | ChatList | ✅ | ✅ | Complete |
+| | ThreadView | ✅ | ✅ | Complete |
+| | MessageItem | ✅ | ✅ | Complete |
+| | MessageReactions | ✅ | ⏳ | New |
+| | ReadReceipts | ✅ | ⏳ | New |
+| | MessageActions | ✅ | ⏳ | New |
+| **UI-SPEC-MAIL-COMPOSE.md** | MailComposer | ✅ | ✅ | Complete |
+| | RichTextEditor | ✅ | ⏳ | New |
+| | MailDetail | ✅ | ✅ | Complete |
+| **UI-SPEC-PROJECTS.md** | KanbanBoard | ✅ | ✅ | Complete |
+| | GanttChart | ✅ | ✅ | Complete |
+| | ProjectTable | ✅ | ✅ | Complete |
+| **UI-SPEC-FILES.md** | FileUploadZone | ✅ | ✅ | Complete |
+| | FilePreviewModal | ✅ | ✅ | Complete |
+| **UI-SPEC-SEARCH.md** | SearchCommandPalette | ✅ | ✅ | Complete |
+| | SearchFilters | ✅ | ⏳ | New |
+| **UI-SPEC-DIRECTORY-ADMIN.md** | OrganizationTree | ✅ | ✅ | Complete |
+| | UserActionsMenu | ✅ | ⏳ | New |
+| | RolePermissionsMatrix | ✅ | ⏳ | New |
+| **UI-SPEC-NOTIFICATIONS-PWA.md** | NotificationCenter | ✅ | ✅ | Complete |
+| | NotificationToast | ✅ | ⏳ | New |
+| | NotificationSettings | ✅ | ⏳ | New |
+| | PushPermissionPrompt | ✅ | ⏳ | New |
+| | SyncStatusIndicator | ✅ | ⏳ | New |
+
+**Legend:**
+- ✅ Complete
+- ⏳ In Progress
+- ❌ Not Started
+
+## 📚 Resources
+
+- [Tailwind CSS Documentation](https://tailwindcss.com)
+- [shadcn/ui Components](https://ui.shadcn.com)
+- [Lucide Icons](https://lucide.dev)
+- [WCAG Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
+- [Cross-Module Improvements](../docs/frontend/CROSS_MODULE_IMPROVEMENTS.md)
+- [Implementation Roadmap A0-A7](../docs/frontend/IMPLEMENTATION_ROADMAP_A0-A7.md)

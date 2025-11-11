@@ -19,6 +19,21 @@
     "react/no-unescaped-entities": "off",
     "@next/next/no-html-link-for-pages": "off",
     "react-hooks/exhaustive-deps": "warn",
-    "@typescript-eslint/no-explicit-any": "error"
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/strict-boolean-expressions": [
+      "warn",
+      {
+        "allowNullableBoolean": true,
+        "allowNullableString": true,
+        "allowNullableObject": true,
+        "allowNumber": true,
+        "allowAny": false
+      }
+    ],
+    "@typescript-eslint/no-unnecessary-condition": "warn",
+    "@typescript-eslint/ban-ts-comment": [
+      "warn",
+      { "ts-ignore": "allow-with-description" }
+    ]
   }
 }

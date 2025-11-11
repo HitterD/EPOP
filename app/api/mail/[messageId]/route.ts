@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db/mock-data'
+import { scanStore } from '@/server/mail/scan'
 
 export async function GET(_req: NextRequest, { params }: { params: { messageId: string } }) {
   const accessToken = cookies().get('accessToken')?.value
@@ -8,7 +9,8 @@ export async function GET(_req: NextRequest, { params }: { params: { messageId: 
     return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }, { status: 401 })
   const msg = db.getMail(params.messageId)
   if (!msg) return NextResponse.json({ success: false, error: { code: 'NOT_FOUND', message: 'Message not found' } }, { status: 404 })
-  return NextResponse.json({ success: true, data: msg })
+  const scan = scanStore.get(params.messageId)
+  return NextResponse.json({ success: true, data: { ...msg, scan } })
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { messageId: string } }) {

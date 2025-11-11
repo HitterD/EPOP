@@ -20,6 +20,7 @@ export function useResilientSocket(userId?: string, token?: string) {
   const set = useConnectionStore((s) => s.set)
   const attemptsRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hbRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const sockRef = useRef<Socket | null>(null)
 
   useEffect(() => {
@@ -50,7 +51,14 @@ export function useResilientSocket(userId?: string, token?: string) {
 
     const onConnect = () => {
       attemptsRef.current = 0
-      set({ status: 'connected', attempts: 0 })
+      set({ status: 'connected', attempts: 0, lastConnectedAt: Date.now() })
+      // Start presence heartbeats when page is visible
+      if (hbRef.current) clearInterval(hbRef.current)
+      hbRef.current = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          socket.emit('presence:heartbeat')
+        }
+      }, 30_000)
     }
 
     const onDisconnect = (reason: string) => {
@@ -75,6 +83,7 @@ export function useResilientSocket(userId?: string, token?: string) {
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
+      if (hbRef.current) clearInterval(hbRef.current)
       socket.off('connect', onConnect)
       socket.off('disconnect', onDisconnect)
       socket.off('connect_error', onConnectError)

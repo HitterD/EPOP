@@ -19,7 +19,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       })
     }
 
-    const registration = await navigator.serviceWorker.register('/sw.js', {
+    const registration = await navigator.serviceWorker.register('/service-worker.js', {
       scope: '/',
     })
 

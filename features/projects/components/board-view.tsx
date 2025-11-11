@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -68,10 +68,10 @@ export function BoardView({
   )
 
   // Update local state when props change
-  useState(() => {
+  useEffect(() => {
     setLocalBuckets(buckets)
     setLocalTasks(tasks)
-  })
+  }, [buckets, tasks])
 
   // Group tasks by bucket
   const tasksByBucket = localTasks.reduce((acc, task) => {

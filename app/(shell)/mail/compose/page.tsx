@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { RichEditor } from '@/components/ui/rich-editor'
 import { useSendMail, useMailMessage } from '@/lib/api/hooks/use-mail'
+import { loadDraft, saveDraft, clearDraft, type Draft } from '@/lib/mail/autosave'
 import { useFiles } from '@/lib/api/hooks/use-files'
 import { toast } from 'sonner'
 import type { FileItem, CursorPaginatedResponse } from '@/types'
@@ -87,6 +88,40 @@ export default function MailComposePage() {
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues })
   const sendMail = useSendMail()
 
+  // Load autosaved draft on mount
+  useEffect(() => {
+    // Use a single compose key for now; could be per-thread/reply id
+    const draft = loadDraft('compose')
+    if (draft) {
+      form.reset({
+        to: draft.to ?? defaultValues.to,
+        cc: draft.cc ?? defaultValues.cc,
+        bcc: draft.bcc ?? defaultValues.bcc,
+        subject: draft.subject ?? defaultValues.subject,
+        body: draft.body ?? defaultValues.body,
+      })
+      if (Array.isArray(draft.attachments) && draft.attachments.length) {
+        setAttachments(draft.attachments)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Autosave draft when fields/attachments change
+  useEffect(() => {
+    const sub = form.watch((values) => {
+      const draft: Draft = {}
+      if (values.to) draft.to = values.to
+      if (values.cc) draft.cc = values.cc
+      if (values.bcc) draft.bcc = values.bcc
+      if (values.subject) draft.subject = values.subject
+      if (values.body) draft.body = values.body
+      if (attachments && attachments.length) draft.attachments = attachments
+      saveDraft('compose', draft)
+    })
+    return () => sub.unsubscribe()
+  }, [form, attachments])
+
   const onSubmit = (values: FormValues) => {
     const payload = {
       to: splitList(values.to),
@@ -100,6 +135,7 @@ export default function MailComposePage() {
       onSuccess: () => {
         toast.success('Message sent')
         router.push('/mail/sent')
+        clearDraft('compose')
       },
       onError: (e) => toast.error((e as Error).message),
     })

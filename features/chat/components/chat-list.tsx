@@ -11,6 +11,8 @@ import { AvatarWithPresence } from '@/components/ui/presence-badge'
 import { Search, Pin, BellOff } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { VirtualItem } from '@tanstack/react-virtual'
+import { useAuthStore } from '@/lib/stores/auth-store'
+import { usePresenceStore } from '@/lib/stores/presence-store'
 
 interface ChatListProps {
   chats: Chat[]
@@ -19,6 +21,8 @@ interface ChatListProps {
 
 export function ChatList({ chats, activeChatId }: ChatListProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const meId = useAuthStore((s) => s.session?.user?.id)
+  const getPresence = usePresenceStore((s) => s.getPresence)
 
   const filteredChats = useMemo(
     () => chats.filter((chat) => chat.name?.toLowerCase().includes(searchQuery.toLowerCase())),
@@ -73,6 +77,15 @@ export function ChatList({ chats, activeChatId }: ChatListProps) {
             {rowVirtualizer.getVirtualItems().map((vr: VirtualItem) => {
               const chat = sortedChats[vr.index]
               if (!chat) return null
+              // Derive presence: direct -> other member; group -> any online
+              const status = (() => {
+                if (chat.type === 'direct' && meId) {
+                  const other = (chat.members || []).find((m) => m !== meId) || meId
+                  return getPresence(other)
+                }
+                const online = (chat.members || []).some((id) => getPresence(id) !== 'offline')
+                return online ? 'available' : 'offline'
+              })()
               return (
                 <div
                   key={vr.key}
@@ -90,7 +103,7 @@ export function ChatList({ chats, activeChatId }: ChatListProps) {
                         {...(chat.avatar ? { src: chat.avatar } : {})}
                         alt={chat.name || 'Chat'}
                         fallback={getInitials(chat.name || 'Chat')}
-                        status="available"
+                        status={status}
                         size="md"
                       />
                       <div className="flex-1 overflow-hidden">

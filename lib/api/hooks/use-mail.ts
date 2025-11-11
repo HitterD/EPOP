@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery, type InfiniteD
 import { apiClient } from '../client'
 import { MailMessage, CursorPaginatedResponse } from '@/types'
 import { buildCursorQuery, withIdempotencyKey } from '../utils'
+import { generateId } from '@/lib/utils'
+import { queueRequest } from '@/lib/offline/outbox'
 
 export function useMail(folder: 'received' | 'sent' | 'deleted', limit = 50) {
   return useInfiniteQuery({
@@ -84,9 +86,77 @@ export function useSendMail() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (data: SendMailPayload) => {
-      const res = await apiClient.post<MailMessage>('/mail', data, withIdempotencyKey())
-      if (!res.success || !res.data) throw new Error('Failed to send mail')
-      return res.data
+      const idemp = withIdempotencyKey()
+      const res = await apiClient.post<MailMessage>('/mail', data, idemp)
+      if (res.success && res.data) return res.data
+      const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false
+      const isNetError = res.error?.code === 'NETWORK_ERROR'
+      if (isOffline || isNetError) {
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(idemp.headers as Record<string, string>),
+        }
+        await queueRequest('/api/mail', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(data),
+        })
+        const now = new Date().toISOString()
+        const placeholder: MailMessage = {
+          id: `mail-${generateId()}`,
+          from: 'me@epop.com',
+          to: data.to,
+          ...(data.cc ? { cc: data.cc } : {}),
+          ...(data.bcc ? { bcc: data.bcc } : {}),
+          subject: data.subject,
+          body: data.body,
+          attachments: [],
+          folder: 'sent',
+          date: now,
+          isRead: true,
+          isStarred: false,
+          priority: 'normal',
+          createdAt: now,
+          updatedAt: now,
+        }
+        return placeholder
+      }
+      throw new Error(res.error?.message || 'Failed to send mail')
+    },
+    onMutate: async (data) => {
+      // Optimistic add to first sent page
+      qc.setQueryData<InfiniteData<CursorPaginatedResponse<MailMessage>> | undefined>(
+        ['mail', 'sent'],
+        (old) => {
+          if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old
+          const first = old.pages[0]!
+          const now = new Date().toISOString()
+          const temp: MailMessage = {
+            id: `mail-${generateId()}`,
+            from: 'me@epop.com',
+            to: data.to,
+            ...(data.cc ? { cc: data.cc } : {}),
+            ...(data.bcc ? { bcc: data.bcc } : {}),
+            subject: data.subject,
+            body: data.body,
+            attachments: [],
+            folder: 'sent',
+            date: now,
+            isRead: true,
+            isStarred: false,
+            priority: 'normal',
+            createdAt: now,
+            updatedAt: now,
+          }
+          return {
+            ...old,
+            pages: [
+              { ...first, items: [temp, ...(first.items || [])] },
+              ...old.pages.slice(1),
+            ],
+          }
+        },
+      )
     },
     onSuccess: (msg) => {
       qc.setQueryData<InfiniteData<CursorPaginatedResponse<MailMessage>> | undefined>(
@@ -94,6 +164,8 @@ export function useSendMail() {
         (old) => {
           if (!old || !Array.isArray(old.pages) || old.pages.length === 0) return old
           const first = old.pages[0]!
+          const exists = (first.items || []).some((m) => m.id === msg.id)
+          if (exists) return old
           return {
             ...old,
             pages: [

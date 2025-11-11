@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useChatStore } from '@/lib/stores/chat-store'
 import { useSocket } from '@/lib/socket/hooks/use-socket'
@@ -17,6 +17,10 @@ import { SOCKET_EVENTS } from '@/lib/constants'
 import { ThreadPanel } from '@/features/chat/components/thread-panel'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useTypingListener } from '@/lib/socket/hooks/use-chat-events'
+import { usePresenceStore } from '@/lib/stores/presence-store'
+import { useConnectionStore } from '@/lib/stores/connection.store'
+import { useOrgTree } from '@/lib/api/hooks/use-directory'
+import type { User, OrgUnit } from '@/types'
 
 export default function ChatDetailPage({ params }: { params: { chatId: string } }) {
   const { socket } = useSocket()
@@ -30,6 +34,20 @@ export default function ChatDetailPage({ params }: { params: { chatId: string } 
   const [threadParent, setThreadParent] = useState<Message | null>(null)
   const me = useAuthStore((s) => s.session?.user)
   const typingUsers = useTypingListener(params.chatId, me?.id || '')
+  const getPresence = usePresenceStore((s) => s.getPresence)
+  const lastConnectedAt = useConnectionStore((s) => s.lastConnectedAt)
+  const { data: orgRoot } = useOrgTree()
+
+  const userMap = useMemo(() => {
+    const map = new Map<string, User>()
+    const walk = (unit?: OrgUnit) => {
+      if (!unit) return
+      for (const m of unit.members || []) map.set(m.id, m)
+      for (const c of unit.children || []) walk(c)
+    }
+    walk(orgRoot)
+    return map
+  }, [orgRoot])
 
   // Load chats and messages
   useChats()
@@ -88,8 +106,32 @@ export default function ChatDetailPage({ params }: { params: { chatId: string } 
         {/* Chat header */}
         <div className="flex h-14 items-center border-b px-6">
           <h2 className="text-lg font-semibold">{activeChat.name}</h2>
-          <div className="ml-auto text-sm text-muted-foreground">
-            {activeChat.members.length} members
+          <div className="ml-auto text-sm text-muted-foreground flex items-center gap-3">
+            <span>{activeChat.members.length} members</span>
+            <span aria-hidden>•</span>
+            <span>{activeChat.members.filter((id) => getPresence(id) !== 'offline').length} online</span>
+          </div>
+        </div>
+
+        <div className="border-b px-6 py-2">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {activeChat.members
+              .filter((id) => getPresence(id) !== 'offline')
+              .slice(0, 12)
+              .map((id) => {
+                const u = userMap.get(id)
+                const name = u?.name || id
+                return (
+                  <div key={id} className="flex items-center gap-2 rounded-md border px-2 py-1">
+                    <div className="flex items-center">
+                      <div className="mr-1">
+                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                      </div>
+                      <span className="text-xs font-medium">{name}</span>
+                    </div>
+                  </div>
+                )
+              })}
           </div>
         </div>
 
@@ -101,6 +143,7 @@ export default function ChatDetailPage({ params }: { params: { chatId: string } 
                 messages={messages}
                 chatId={params.chatId}
                 onOpenThread={(m) => setThreadParent(m)}
+                lastConnectedAt={lastConnectedAt}
               />
             </div>
             {threadParent && (

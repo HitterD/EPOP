@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { db } from '@/lib/db/mock-data'
 
 const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password']
 const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password']
@@ -24,6 +25,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  // RBAC: admin guard for /admin routes
+  if (accessToken && pathname.startsWith('/admin')) {
+    const userId = accessToken.split('_')[1]
+    const me = userId ? db.getUser(userId) : undefined
+    if (!me || me.role !== 'admin') {
+      const dash = new URL('/dashboard', request.url)
+      dash.searchParams.set('forbidden', '1')
+      return NextResponse.redirect(dash)
+    }
+  }
+
   // Redirect root to dashboard if authenticated, otherwise to login
   if (pathname === '/') {
     if (accessToken) {
@@ -37,5 +49,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icons|manifest.json|sw.js).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icons|manifest.json|sw.js|service-worker.js).*)'],
 }

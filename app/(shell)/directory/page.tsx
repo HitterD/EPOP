@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { IfCan } from '@/components/auth/if-can'
 import { useOrgTree, useDirectoryAudit, useBulkImportDryRun, useBulkImportCommit } from '@/lib/api/hooks/use-directory'
+import { PresenceRoster } from '@/features/directory/components'
 import { OrgTree } from '@/features/directory/components/org-tree'
 import { useDomainEvents } from '@/lib/socket/hooks/use-domain-events'
 import { SOCKET_EVENTS } from '@/lib/constants'
@@ -95,6 +96,11 @@ export default function DirectoryPage() {
     }>
       <div className="h-full overflow-y-auto p-6">
         <h1 className="mb-6 text-3xl font-bold">Directory</h1>
+
+        {/* Online roster */}
+        <div className="mb-6">
+          <PresenceRoster />
+        </div>
 
         {/* Tree view */}
         <Card className="mb-6">

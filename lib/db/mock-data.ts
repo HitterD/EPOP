@@ -242,6 +242,10 @@ export class MockDatabase {
     return updated
   }
 
+  deleteMail(messageId: string): boolean {
+    return this.mailById.delete(messageId)
+  }
+
   private seed() {
     mockUsers.forEach((user) => this.users.set(user.id, user))
     mockChats.forEach((chat) => this.chats.set(chat.id, chat))
@@ -311,6 +315,18 @@ export class MockDatabase {
 
   getAllUsers(): User[] {
     return Array.from(this.users.values())
+  }
+
+  updateUser(userId: string, updates: Partial<User>): User | undefined {
+    const existing = this.users.get(userId)
+    if (!existing) return undefined
+    const updated: User = { ...existing, ...updates, id: existing.id, updatedAt: new Date().toISOString() }
+    this.users.set(userId, updated)
+    return updated
+  }
+
+  deleteUser(userId: string): boolean {
+    return this.users.delete(userId)
   }
 
   createUser(user: User): User {
@@ -384,6 +400,14 @@ export class MockDatabase {
     return this.messages.get(chatId) || []
   }
 
+  getAllMessages(): Message[] {
+    const arr: Message[] = []
+    for (const list of this.messages.values()) {
+      for (const m of list) arr.push(m)
+    }
+    return arr
+  }
+
   addMessage(message: Message): Message {
     const chatMessages = this.messages.get(message.chatId) || []
     chatMessages.push(message)
@@ -426,6 +450,29 @@ export class MockDatabase {
     const reactions = msg.reactions || []
     reactions.push({ emoji, userId, createdAt: new Date().toISOString() })
     this.updateMessage(chatId, messageId, { reactions })
+  }
+
+  removeReaction(chatId: string, messageId: string, emoji: string, userId: string) {
+    const msgs = this.messages.get(chatId)
+    if (!msgs) return
+    const msg = msgs.find((m) => m.id === messageId)
+    if (!msg) return
+    const reactions = (msg.reactions || []).slice()
+    const idx = reactions.findIndex((r) => r.emoji === emoji && r.userId === userId)
+    if (idx >= 0) {
+      reactions.splice(idx, 1)
+      this.updateMessage(chatId, messageId, { reactions })
+    }
+  }
+
+  markMessageRead(chatId: string, messageId: string, userId: string) {
+    const msgs = this.messages.get(chatId)
+    if (!msgs) return undefined
+    const msg = msgs.find((m) => m.id === messageId)
+    if (!msg) return undefined
+    const readBy = Array.isArray(msg.readBy) ? new Set(msg.readBy) : new Set<string>()
+    readBy.add(userId)
+    return this.updateMessage(chatId, messageId, { readBy: Array.from(readBy) })
   }
 
   // Threads
@@ -485,6 +532,52 @@ export class MockDatabase {
     p.updatedAt = new Date().toISOString()
     this.projects.set(projectId, p)
     return newBucket
+  }
+
+  moveTask(projectId: string, taskId: string, toBucketId: string, orderIndex: number): Task | undefined {
+    const task = this.tasks.get(taskId)
+    const project = this.projects.get(projectId)
+    if (!task || !project) return undefined
+    const fromBucketId = task.bucketId
+    const now = new Date().toISOString()
+    const updated: Task = { ...task, bucketId: toBucketId, order: orderIndex, updatedAt: now }
+    this.tasks.set(taskId, updated)
+    // Update bucket snapshots
+    const fromBucket = project.buckets.find((b) => b.id === fromBucketId)
+    const toBucket = project.buckets.find((b) => b.id === toBucketId)
+    if (fromBucket) {
+      fromBucket.tasks = (fromBucket.tasks || []).filter((t) => t.id !== taskId)
+    }
+    if (toBucket) {
+      const arr = (toBucket.tasks || []).filter((t) => t.id !== taskId)
+      arr.splice(Math.max(0, Math.min(orderIndex, arr.length)), 0, updated)
+      // Normalize order
+      toBucket.tasks = arr.map((t, idx) => ({ ...t, order: idx }))
+    }
+    project.updatedAt = now
+    this.projects.set(projectId, project)
+    return updated
+  }
+
+  reorderBucketTasks(projectId: string, bucketId: string, taskIds: string[]): boolean {
+    const project = this.projects.get(projectId)
+    if (!project) return false
+    const bucket = project.buckets.find((b) => b.id === bucketId)
+    if (!bucket) return false
+    const taskMap = new Map((bucket.tasks || []).map((t) => [t.id, t]))
+    const reordered: Task[] = []
+    taskIds.forEach((id, idx) => {
+      const t = taskMap.get(id)
+      if (t) {
+        const updated: Task = { ...t, order: idx, updatedAt: new Date().toISOString() }
+        this.tasks.set(updated.id, updated)
+        reordered.push(updated)
+      }
+    })
+    bucket.tasks = reordered
+    project.updatedAt = new Date().toISOString()
+    this.projects.set(projectId, project)
+    return true
   }
 
   // Task methods

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db/mock-data'
+import { chatEvents } from '@/server/chat/events'
 
 export async function POST(request: NextRequest, { params }: { params: { chatId: string } }) {
   const accessToken = cookies().get('accessToken')?.value
@@ -9,5 +10,14 @@ export async function POST(request: NextRequest, { params }: { params: { chatId:
   if (!userId) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 })
   const { messageId, emoji } = await request.json()
   db.addReaction(params.chatId, messageId, emoji, userId)
-  return NextResponse.json({ success: true })
+
+  // Append a domain event so clients can recover via /api/chat/missed
+  const ev = chatEvents.append('message:react', {
+    chatId: params.chatId,
+    messageId,
+    emoji,
+    userId,
+  })
+
+  return NextResponse.json({ success: true, data: { eventId: ev.id, serverTimestamp: ev.serverTimestamp } })
 }

@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useTheme } from 'next-themes'
 import { DynamicBreadcrumbs } from './breadcrumbs'
+import { useServiceWorker } from '@/lib/service-worker/use-service-worker'
 
 export function TopHeader() {
   const router = useRouter()
@@ -38,6 +39,16 @@ export function TopHeader() {
   const latest: Notification[] = notifItems.slice(0, 10)
   const markRead = useMarkNotificationRead()
   const markAll = useMarkAllNotificationsAsRead()
+  const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  const {
+    isSupported,
+    isRegistered,
+    isSubscribed,
+    permission,
+    subscribe,
+    unsubscribe,
+    requestPermission,
+  } = useServiceWorker(vapid)
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -183,6 +194,21 @@ export function TopHeader() {
                 )}
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {isSupported && (
+              <DropdownMenuItem
+                onClick={async () => {
+                  if (!isSubscribed) {
+                    if (permission !== 'granted') await requestPermission()
+                    await subscribe()
+                  } else {
+                    await unsubscribe()
+                  }
+                }}
+              >
+                {isSubscribed ? 'Disable Web Push' : 'Enable Web Push'}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push('/settings')}>
               <Settings className="mr-2 h-4 w-4" />

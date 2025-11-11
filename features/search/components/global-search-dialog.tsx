@@ -15,7 +15,9 @@ import { SearchFilters } from './search-filters'
 import { Search, Loader2, Command } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { useRecentSearchStore } from '@/lib/stores/recent-search.store'
 import type { SearchResult as ApiSearchResult } from '@/types'
+import { useSearchSnapshotStore } from '@/lib/stores/search-snapshot.store'
 
 interface GlobalSearchDialogProps {
   isOpen: boolean
@@ -34,6 +36,14 @@ export function GlobalSearchDialog({ isOpen, onClose }: GlobalSearchDialogProps)
 
   const debouncedQuery = useDebounce(query, 300)
   const router = useRouter()
+  const recent = useRecentSearchStore()
+  const snapshot = useSearchSnapshotStore()
+
+  const keyOf = useCallback(
+    (q: string, tab: string, f: typeof filters) =>
+      JSON.stringify({ q: q.trim().toLowerCase(), tab, f }),
+    [filters]
+  )
 
   // Fetch search results
   type UISearchResult = {
@@ -81,7 +91,27 @@ export function GlobalSearchDialog({ isOpen, onClose }: GlobalSearchDialogProps)
 
   useEffect(() => {
     if (!searchData) {
+      // Warm start: try snapshot if no fresh data yet
+      const key = keyOf(debouncedQuery, activeTab, filters)
+      const snap = snapshot.get(key) as ApiSearchResult | undefined
+      if (snap) {
+        const seed: UISearchResult[] = []
+        snap.messages?.forEach(({ item }) => {
+          seed.push({ id: item.id, type: 'message', title: item.content || 'Message', content: item.content, ...(item.content ? { snippet: item.content } : {}), ...(item.chatId ? { chatId: item.chatId } : {}), metadata: { ...(item.sender ? { sender: { name: item.sender.name, ...(item.sender.avatar ? { avatar: item.sender.avatar } : {}) } } : {}), date: item.createdAt } })
+        })
+        snap.projects?.forEach(({ item }) => {
+          seed.push({ id: item.id, type: 'project', title: item.name, ...(item.description ? { snippet: item.description } : {}), metadata: { date: item.updatedAt } })
+        })
+        snap.users?.forEach(({ item }) => {
+          seed.push({ id: item.id, type: 'user', title: item.name, snippet: item.email, metadata: { ...(item.avatar ? { avatar: item.avatar } : {}), name: item.name, email: item.email, ...(item.department ? { department: item.department } : {}), status: item.presence } })
+        })
+        snap.files?.forEach(({ item }) => {
+          seed.push({ id: item.id, type: 'file', title: item.name, snippet: item.mimeType, metadata: { fileName: item.name, fileSize: item.size, date: item.createdAt, ...(item.uploadedBy?.name ? { uploadedBy: item.uploadedBy.name } : {}) } })
+        })
+        if (seed.length) setSearchResults(seed)
+      } else {
       setSearchResults([])
+      }
       return
     }
     const data = searchData as ApiSearchResult
@@ -152,7 +182,13 @@ export function GlobalSearchDialog({ isOpen, onClose }: GlobalSearchDialogProps)
       })
     })
     setSearchResults(arr)
-  }, [searchData])
+    // Save snapshot for warm-starts
+    const key = keyOf(debouncedQuery, activeTab, filters)
+    snapshot.save(key, data)
+    if (debouncedQuery && debouncedQuery.trim().length > 0) {
+      recent.add(debouncedQuery)
+    }
+  }, [searchData, debouncedQuery, recent, snapshot, activeTab, filters, keyOf])
 
   const searchResultsArray = searchResults
 
@@ -262,6 +298,29 @@ export function GlobalSearchDialog({ isOpen, onClose }: GlobalSearchDialogProps)
             resultType={activeTab}
           />
         </div>
+
+        {/* Recent queries */}
+        {recent.items.length > 0 && (
+          <div className="px-4 py-2 border-b bg-white dark:bg-black/20 flex flex-wrap gap-2">
+            {recent.items.map((q) => (
+              <button
+                key={q}
+                className={cn('px-2 py-1 text-xs rounded border hover:bg-gray-100 dark:hover:bg-gray-800')}
+                onClick={() => setQuery(q)}
+                type="button"
+              >
+                {q}
+              </button>
+            ))}
+            <button
+              className={cn('ml-auto px-2 py-1 text-xs rounded text-gray-500 hover:text-gray-800 dark:hover:text-gray-200')}
+              onClick={() => recent.clear()}
+              type="button"
+            >
+              Clear
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'messages' | 'projects' | 'users' | 'files')} className="flex-1 flex flex-col">

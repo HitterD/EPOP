@@ -5,6 +5,7 @@ const CACHE_NAME = 'epop-v1'
 const urlsToCache = [
   '/',
   '/manifest.json',
+  '/offline.html',
 ]
 
 // Install event - cache static assets
@@ -155,8 +156,14 @@ self.addEventListener('fetch', (event) => {
         return response
       })
       .catch(() => {
-        // If network fails, try cache
-        return caches.match(event.request)
+        // If network fails, try cache; on navigation, fall back to offline page
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached
+          if (event.request.mode === 'navigate') {
+            return caches.match('/offline.html')
+          }
+          return undefined
+        })
       })
   )
 })
@@ -171,3 +178,77 @@ self.addEventListener('message', (event) => {
 })
 
 console.log('[Service Worker] Loaded')
+
+// Outbox helpers (IndexedDB)
+const OUTBOX_DB = 'epop'
+const OUTBOX_STORE = 'outbox'
+
+function openOutboxDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(OUTBOX_DB, 1)
+    req.onupgradeneeded = () => {
+      const db = req.result
+      if (!db.objectStoreNames.contains(OUTBOX_STORE)) {
+        db.createObjectStore(OUTBOX_STORE, { keyPath: 'id' })
+      }
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+async function getAllOutbox() {
+  const db = await openOutboxDb()
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction(OUTBOX_STORE, 'readonly')
+    const req = tx.objectStore(OUTBOX_STORE).getAll()
+    req.onsuccess = () => resolve(req.result || [])
+    req.onerror = () => reject(req.error)
+  })
+}
+
+async function deleteOutbox(id) {
+  const db = await openOutboxDb()
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(OUTBOX_STORE, 'readwrite')
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+    tx.objectStore(OUTBOX_STORE).delete(id)
+  })
+}
+
+async function flushOutbox() {
+  const items = await getAllOutbox()
+  if (!items || items.length === 0) return
+  for (const item of items) {
+    try {
+      const resp = await fetch(item.url, {
+        method: item.method || 'POST',
+        headers: item.headers || {},
+        body: item.body,
+        credentials: 'include',
+      })
+      if (resp && resp.ok) {
+        await deleteOutbox(item.id)
+      }
+    } catch (err) {
+      // keep it for next retry
+      console.warn('[Service Worker] Outbox send failed; will retry later', err)
+    }
+  }
+}
+
+// Background Sync: process outbox when connectivity returns
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'outbox-sync') {
+    console.log('[Service Worker] Background sync: outbox-sync')
+    event.waitUntil(flushOutbox())
+  }
+})
+
+// Trigger outbox from clients (when online detected)
+self.addEventListener('message', (event) => {
+  if (event?.data?.type === 'TRIGGER_OUTBOX') {
+    event.waitUntil?.(flushOutbox())
+  }
+})

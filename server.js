@@ -30,6 +30,9 @@ app.prepare().then(() => {
     },
   })
 
+  // Expose IO globally so Next.js API routes can broadcast domain events
+  global.__io = io
+
   // Socket.IO authentication middleware
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token
@@ -47,6 +50,26 @@ app.prepare().then(() => {
   // Socket.IO connection handler
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.userId}`)
+
+    // Presence heartbeat tracking
+    const heartbeatIntervalMs = 30_000
+    const presenceTimeoutMs = 90_000
+    const lastHeartbeat = (io.__lastHeartbeat = io.__lastHeartbeat || new Map())
+
+    const markPresence = (status) => {
+      const payload = {
+        eventType: 'user.presence.updated',
+        ids: [socket.userId],
+        timestamp: new Date().toISOString(),
+        actorId: socket.userId,
+        userId: socket.userId,
+        status,
+      }
+      io.emit('user.presence.updated', payload)
+    }
+
+    // Initial announce as available
+    markPresence('available')
 
     // Chat events
     socket.on('join_chat', (chatId) => {
@@ -126,24 +149,41 @@ app.prepare().then(() => {
       })
     })
 
-    // Presence updates
+    // Presence updates (legacy)
     socket.on('update_presence', (status) => {
-      socket.broadcast.emit('user_presence_changed', {
-        userId: socket.userId,
-        status,
-        timestamp: new Date().toISOString(),
-      })
+      markPresence(status)
+    })
+
+    // Presence heartbeat (new)
+    socket.on('presence:heartbeat', () => {
+      lastHeartbeat.set(socket.userId, Date.now())
+      markPresence('available')
     })
 
     socket.on('disconnect', () => {
       console.log(`User disconnected: ${socket.userId}`)
-      socket.broadcast.emit('user_presence_changed', {
-        userId: socket.userId,
-        status: 'offline',
-        timestamp: new Date().toISOString(),
-      })
+      markPresence('offline')
     })
   })
+
+  // Periodic presence timeout check
+  setInterval(() => {
+    const lastHeartbeat = io.__lastHeartbeat || new Map()
+    const now = Date.now()
+    for (const [userId, ts] of lastHeartbeat.entries()) {
+      if (now - ts > 90_000) {
+        io.emit('user.presence.updated', {
+          eventType: 'user.presence.updated',
+          ids: [userId],
+          timestamp: new Date().toISOString(),
+          actorId: userId,
+          userId,
+          status: 'offline',
+        })
+        lastHeartbeat.delete(userId)
+      }
+    }
+  }, 30_000)
 
   server
     .once('error', (err) => {

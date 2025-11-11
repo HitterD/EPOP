@@ -6,6 +6,7 @@ export type ConnState = {
   status: Status
   attempts: number
   lastError?: string
+  lastConnectedAt?: number
   set: (p: Partial<ConnState>) => void
 }
 
