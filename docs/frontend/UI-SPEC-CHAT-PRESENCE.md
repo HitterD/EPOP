@@ -85,7 +85,7 @@ interface ChatListItemProps {
 ┌──────────────────────────────────────────┐
 │ [Avatar+Presence] Name [5555]     [Time] │
 │                   Last msg...        [3] │ ← Badge unread
-└─────────────────────────────────────┘
+└──────────────────────────────────────────┘
 ```
 
 **Presence Indicator:**
